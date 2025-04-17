@@ -1,4 +1,4 @@
-// lib/services/chat/chat_service.dart (rename from chart_service.dart)
+// lib/services/chat/chat_service.dart
 import 'package:chatapp/models/message.dart';
 import 'package:chatapp/services/encryption/encryption_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -66,13 +66,14 @@ class ChatService extends ChangeNotifier {
     String conversationKey = await _encryptionService.getOrCreateConversationKey(chatRoomID);
     
     // Encrypt message
-    String encryptedMessage = _encryptionService.encryptMessage(message, conversationKey);
+    Map<String, String> encryptedData = _encryptionService.encryptMessage(message, conversationKey);
 
     Message newMessage = Message(
       senderId: currentUserId,
       senderEmail: currentUserEmail,
       receiverId: receiverId,
-      message: encryptedMessage, // Store encrypted message
+      message: encryptedData['encryptedText']!, // Store encrypted message
+      iv: encryptedData['iv']!, // Store IV
       timestamp: timestamp,
     );
 
@@ -97,18 +98,36 @@ class ChatService extends ChangeNotifier {
         .snapshots();
   }
   
-  // Decrypt a message
+  // Decrypt a message from document data
+  Future<String> decryptMessageFromDoc(Map<String, dynamic> messageData, String chatRoomId) async {
+    try {
+      // Get conversation key
+      String conversationKey = await _encryptionService.getOrCreateConversationKey(chatRoomId);
+      
+      String encryptedMessage = messageData['message'] ?? '';
+      String iv = messageData['iv'] ?? '';
+      
+      // Decrypt message
+      return _encryptionService.decryptMessage(encryptedMessage, iv, conversationKey);
+    } catch (e) {
+      // Use logger instead of print in production
+      debugPrint("Error decrypting message: $e");
+      return "[Decryption error]";
+    }
+  }
+  
+  // Decrypt a message (legacy method - for backward compatibility)
   Future<String> decryptMessage(String encryptedMessage, String chatRoomId) async {
     try {
       // Get conversation key
       String conversationKey = await _encryptionService.getOrCreateConversationKey(chatRoomId);
       
-      // Decrypt message
-      return _encryptionService.decryptMessage(encryptedMessage, conversationKey);
+      // For legacy messages without IV, we'll try to decrypt without it
+      return _encryptionService.decryptMessage(encryptedMessage, '', conversationKey);
     } catch (e) {
       // Use logger instead of print in production
       debugPrint("Error decrypting message: $e");
-      return "[Decryption error]";
+      return "[Encrypted message]";
     }
   }
 

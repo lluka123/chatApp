@@ -7,7 +7,7 @@ import "package:chatapp/services/chat/chat_service.dart";
 import "package:flutter/material.dart";
 
 class HomePage extends StatefulWidget {
-  HomePage({super.key});
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -41,7 +41,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           "SecureChat",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -49,7 +49,7 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.search),
+            icon: const Icon(Icons.search),
             onPressed: () {
               // Implement search functionality
             },
@@ -58,15 +58,15 @@ class _HomePageState extends State<HomePage> {
       ),
       drawer: const MyDrawer(),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Container(
-                    padding: EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1 * 255.0),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -75,7 +75,7 @@ class _HomePageState extends State<HomePage> {
                           Icons.lock,
                           color: Theme.of(context).colorScheme.primary,
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             "Your messages are end-to-end encrypted",
@@ -99,17 +99,17 @@ class _HomePageState extends State<HomePage> {
       stream: chatService.getUsersStreamExceptBlocked(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text("Error loading users"));
+          return const Center(child: Text("Error loading users"));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         }
         
         final users = snapshot.data!;
         
         if (users.isEmpty) {
-          return Center(
+          return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

@@ -3,10 +3,12 @@ import 'dart:math';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:logging/logging.dart';
 
 class EncryptionService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Logger _logger = Logger('EncryptionService');
   
   // Generate a secure random key
   String generateSecureKey() {
@@ -32,27 +34,43 @@ class EncryptionService {
   }
   
   // Encrypt a message
-  String encryptMessage(String message, String key) {
+  Map<String, String> encryptMessage(String message, String key) {
     try {
       final encryptKey = encrypt.Key.fromBase64(key);
-      final iv = encrypt.IV.fromLength(16);
+      // Generate a random IV for each message
+      final iv = encrypt.IV.fromSecureRandom(16);
       final encrypter = encrypt.Encrypter(encrypt.AES(encryptKey));
-      return encrypter.encrypt(message, iv: iv).base64;
+      
+      final encrypted = encrypter.encrypt(message, iv: iv);
+      
+      // Return both the encrypted message and the IV
+      return {
+        'encryptedText': encrypted.base64,
+        'iv': iv.base64,
+      };
     } catch (e) {
-      print("Encryption error: $e");
-      return message; // Return original message if encryption fails
+      _logger.warning("Encryption error: $e");
+      return {
+        'encryptedText': message,
+        'iv': '',
+      }; // Return original message if encryption fails
     }
   }
   
   // Decrypt a message
-  String decryptMessage(String encryptedMessage, String key) {
+  String decryptMessage(String encryptedMessage, String ivString, String key) {
     try {
+      if (ivString.isEmpty) {
+        return encryptedMessage; // If no IV, return the message as is
+      }
+      
       final encryptKey = encrypt.Key.fromBase64(key);
-      final iv = encrypt.IV.fromLength(16);
+      final iv = encrypt.IV.fromBase64(ivString);
       final encrypter = encrypt.Encrypter(encrypt.AES(encryptKey));
+      
       return encrypter.decrypt64(encryptedMessage, iv: iv);
     } catch (e) {
-      print("Decryption error: $e");
+      _logger.warning("Decryption error: $e");
       return "[Encrypted message]"; // Return placeholder if decryption fails
     }
   }

@@ -22,20 +22,20 @@ class MyDrawer extends StatelessWidget {
           Column(
             children: [
               Container(
-                padding: EdgeInsets.symmetric(vertical: 40),
+                padding: const EdgeInsets.symmetric(vertical: 40),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.message,
                         color: Colors.white,
                         size: 60,
                       ),
-                      SizedBox(height: 10),
-                      Text(
+                      const SizedBox(height: 10),
+                      const Text(
                         "SecureChat",
                         style: TextStyle(
                           color: Colors.white,
@@ -43,11 +43,11 @@ class MyDrawer extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 5),
+                      const SizedBox(height: 5),
                       Text(
                         "End-to-End Encrypted",
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8 * 255.0),
                           fontSize: 14,
                         ),
                       ),
@@ -58,7 +58,7 @@ class MyDrawer extends StatelessWidget {
 
               // Home List Tile
               ListTile(
-                title: Text(
+                title: const Text(
                   "Home",
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
@@ -73,7 +73,7 @@ class MyDrawer extends StatelessWidget {
 
               // Setting List Tile
               ListTile(
-                title: Text(
+                title: const Text(
                   "Settings",
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
@@ -91,7 +91,7 @@ class MyDrawer extends StatelessWidget {
                 },
               ),
               
-              Divider(),
+              const Divider(),
             ],
           ),
 
@@ -99,11 +99,11 @@ class MyDrawer extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 25.0),
             child: ListTile(
-              title: Text(
+              title: const Text(
                 "Logout",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              leading: Icon(
+              leading: const Icon(
                 Icons.logout,
                 color: Colors.red,
               ),

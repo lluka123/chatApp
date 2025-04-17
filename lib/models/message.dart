@@ -5,6 +5,7 @@ class Message {
   final String senderEmail;
   final String receiverId;
   final String message;
+  final String iv; // Dodano polje za IV
   final Timestamp timestamp;
 
   Message({
@@ -12,6 +13,7 @@ class Message {
     required this.senderEmail,
     required this.receiverId,
     required this.message,
+    required this.iv, // Dodano
     required this.timestamp,
   }); 
 
@@ -21,6 +23,7 @@ class Message {
       'senderEmail': senderEmail,
       'receiverId': receiverId,
       'message': message,
+      'iv': iv, // Dodano
       'timestamp': timestamp,
     };
   }

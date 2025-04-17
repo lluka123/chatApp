@@ -14,7 +14,7 @@ class AuthGate extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             // User is logged in
-            return HomePage();
+            return const HomePage(); // <-- DODAN const
           } else {
             // User is NOT logged in
             return const LoginOrRegister();

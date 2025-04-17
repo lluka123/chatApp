@@ -22,17 +22,17 @@ class ChatBubble extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
-        padding: EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.copy),
-              title: Text('Copy message'),
+              leading: const Icon(Icons.copy),
+              title: const Text('Copy message'),
               onTap: () {
                 // Copy message to clipboard
                 Navigator.pop(context);
@@ -40,25 +40,25 @@ class ChatBubble extends StatelessWidget {
             ),
             if (!isCurrentUser) ...[
               ListTile(
-                leading: Icon(Icons.report),
-                title: Text('Report message'),
+                leading: const Icon(Icons.report),
+                title: const Text('Report message'),
                 onTap: () {
                   chatService.reportUser(messageId, userId);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Message reported')),
+                    const SnackBar(content: Text('Message reported')),
                   );
                 },
               ),
               ListTile(
-                leading: Icon(Icons.block),
-                title: Text('Block user'),
+                leading: const Icon(Icons.block),
+                title: const Text('Block user'),
                 onTap: () {
                   chatService.blockUser(userId);
                   Navigator.pop(context);
                   Navigator.pop(context); // Go back to home
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('User blocked')),
+                    const SnackBar(content: Text('User blocked')),
                   );
                 },
               ),
@@ -77,21 +77,21 @@ class ChatBubble extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
-        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 12),
-        padding: EdgeInsets.all(12),
+        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isCurrentUser
               ? Theme.of(context).colorScheme.primary
               : Theme.of(context).colorScheme.secondary,
           borderRadius: BorderRadius.circular(16).copyWith(
-            bottomRight: isCurrentUser ? Radius.circular(0) : null,
-            bottomLeft: !isCurrentUser ? Radius.circular(0) : null,
+            bottomRight: isCurrentUser ? const Radius.circular(0) : null,
+            bottomLeft: !isCurrentUser ? const Radius.circular(0) : null,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05 * 255.0),
               blurRadius: 5,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -105,13 +105,13 @@ class ChatBubble extends StatelessWidget {
                 fontSize: 16,
               ),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               DateFormat('h:mm a').format(DateTime.now()),
               style: TextStyle(
                 color: isCurrentUser
-                    ? Colors.white.withOpacity(0.7)
-                    : Colors.black.withOpacity(0.5),
+                    ? Colors.white.withValues(alpha: 0.7 * 255.0)
+                    : Colors.black.withValues(alpha: 0.5 * 255.0),
                 fontSize: 12,
               ),
               textAlign: TextAlign.right,

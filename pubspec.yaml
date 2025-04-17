@@ -43,6 +43,7 @@ dependencies:
   intl: ^0.18.1
   flutter_secure_storage: ^8.0.0
   asn1lib: ^1.4.0
+  logging: ^1.2.0
 
 dev_dependencies:
   flutter_test:

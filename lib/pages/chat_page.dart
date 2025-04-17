@@ -1,6 +1,5 @@
 // lib/pages/chat_page.dart
 import "package:chatapp/components/chat_bubble.dart";
-import "package:chatapp/components/my_textfield.dart";
 import "package:chatapp/services/auth/auth_service.dart";
 import "package:chatapp/services/chat/chat_service.dart";
 import "package:cloud_firestore/cloud_firestore.dart";
@@ -73,32 +72,35 @@ class _ChatPageState extends State<ChatPage> {
       );
     }
   }
+void sendMessage() async {
+  if (_messageController.text.isNotEmpty) {
+    setState(() {
+      _isLoading = true;
+    });
 
-  void sendMessage() async {
-    if (_messageController.text.isNotEmpty) {
-      setState(() {
-        _isLoading = true;
-      });
-      
-      try {
-        await _chatService.sendMessage(
-          widget.receiverId,
-          _messageController.text,
-        );
+    try {
+      await _chatService.sendMessage(
+        widget.receiverId,
+        _messageController.text,
+      );
 
-        _messageController.clear();
-        scrollDown();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error sending message: ${e.toString()}")),
-        );
-      } finally {
+      _messageController.clear();
+      scrollDown();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error sending message: ${e.toString()}")),
+      );
+    } finally {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -110,20 +112,20 @@ class _ChatPageState extends State<ChatPage> {
               backgroundColor: Theme.of(context).colorScheme.primary,
               child: Text(
                 widget.receiverEmail[0].toUpperCase(),
-                style: TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.white),
               ),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.receiverEmail,
-                    style: TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 16),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
+                  const Text(
                     "End-to-end encrypted",
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
@@ -136,61 +138,64 @@ class _ChatPageState extends State<ChatPage> {
         elevation: 0,
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [Expanded(child: _buildMessageList()), _buildUserInput()],
             ),
     );
   }
 
-  Widget _buildMessageList() {
-    String senderId = _authService.getCurrentUser()!.uid;
-    List<String> ids = [senderId, widget.receiverId];
-    ids.sort();
-    String chatRoomID = ids.join("_");
+ Widget _buildMessageList() {
+  String senderId = _authService.getCurrentUser()!.uid;
+  List<String> ids = [senderId, widget.receiverId];
+  ids.sort();
+  String chatRoomID = ids.join("_");
 
-    return StreamBuilder(
-      stream: _chatService.getMessages(senderId, widget.receiverId),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text("Error loading messages"));
+  return StreamBuilder(
+    stream: _chatService.getMessages(senderId, widget.receiverId),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Center(child: Text("Error loading messages"));
+      }
+
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
+
+      return ListView(
+  controller: _scrollController,
+  padding: const EdgeInsets.all(12),
+  children: snapshot.data!.docs.map((doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    
+    return FutureBuilder<String>(
+      future: _chatService.decryptMessageFromDoc(
+        data, 
+        chatRoomID
+      ),
+      builder: (context, decryptSnapshot) {
+        if (decryptSnapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(height: 0);
         }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
-
-        return ListView(
-          controller: _scrollController,
-          padding: EdgeInsets.all(12),
-          children: snapshot.data!.docs.map((doc) {
-            return FutureBuilder<String>(
-              future: _chatService.decryptMessage(
-                doc['message'], 
-                chatRoomID
-              ),
-              builder: (context, decryptSnapshot) {
-                if (decryptSnapshot.connectionState == ConnectionState.waiting) {
-                  return SizedBox(height: 0);
-                }
-                
-                Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-                bool isCurrentUser = data['senderId'] == senderId;
-                
-                return _buildMessageListItem(
-                  doc, 
-                  decryptSnapshot.data ?? "[Decryption error]",
-                  isCurrentUser
-                );
-              },
-            );
-          }).toList(),
+        
+        bool isCurrentUser = data['senderId'] == senderId;
+        
+        return _buildMessageListItem(
+          doc, 
+          decryptSnapshot.data ?? "[Decryption error]",
+          isCurrentUser
         );
       },
     );
-  }
+  }).toList(),
+);
+
+    },
+  );
+}
+
 
   Widget _buildMessageListItem(
     DocumentSnapshot doc, 
@@ -218,9 +223,10 @@ class _ChatPageState extends State<ChatPage> {
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            // FIXED: Use withValues instead of withOpacity
+            color: Colors.black.withValues(alpha: 0.05 * 255),
             blurRadius: 10,
-            offset: Offset(0, -5),
+            offset: const Offset(0, -5),
           )
         ],
       ),
@@ -241,7 +247,7 @@ class _ChatPageState extends State<ChatPage> {
                     hintText: "Type a message",
                     border: InputBorder.none,
                     hintStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7 * 255.0),
                     ),
                   ),
                   maxLines: null,
@@ -249,7 +255,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Container(
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
@@ -258,7 +264,7 @@ class _ChatPageState extends State<ChatPage> {
             child: IconButton(
               onPressed: _isLoading ? null : sendMessage,
               icon: _isLoading
-                  ? SizedBox(
+                  ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
@@ -266,7 +272,7 @@ class _ChatPageState extends State<ChatPage> {
                         strokeWidth: 2,
                       ),
                     )
-                  : Icon(Icons.send_rounded, color: Colors.white),
+                  : const Icon(Icons.send_rounded, color: Colors.white),
             ),
           ),
         ],
