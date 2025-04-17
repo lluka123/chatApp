@@ -13,7 +13,7 @@ class Message {
     required this.receiverId,
     required this.message,
     required this.timestamp,
-  });
+  }); 
 
   Map<String, dynamic> toMap() {
     return {

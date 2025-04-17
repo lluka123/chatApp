@@ -1,7 +1,7 @@
-import "package:chatapp/services/chat/chart_service.dart";
-import "package:chatapp/themes/theme_provider.dart";
-import "package:flutter/material.dart";
-import "package:provider/provider.dart";
+// lib/components/chat_bubble.dart
+import 'package:chatapp/services/chat/chat_service.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class ChatBubble extends StatelessWidget {
   final String message;
@@ -17,151 +17,106 @@ class ChatBubble extends StatelessWidget {
     required this.userId,
   });
 
-  // Show options
-  void _showOptions(BuildContext context, String messageId, String userId) {
+  void _showContextMenu(BuildContext context) {
+    final chatService = ChatService();
+
     showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              // Report message
-              ListTile(
-                leading: const Icon(Icons.report),
-                title: const Text("Report"),
-                onTap: () {
-                  Navigator.pop(context);
-                  _reportMessage(context, messageId, userId);
-                },
-              ),
-
-              // Block user
-              ListTile(
-                leading: const Icon(Icons.block),
-                title: const Text("Block user"),
-                onTap: () {
-                  Navigator.pop(context);
-                  _blockUser(context, userId);
-                },
-              ),
-
-              // Cancel
-              ListTile(
-                leading: const Icon(Icons.cancel),
-                title: const Text("Cancel"),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Report message
-  void _reportMessage(BuildContext context, String messageId, String userId) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Report message"),
-            content: const Text(
-              "Are you sure you want to report this message?",
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.copy),
+              title: Text('Copy message'),
+              onTap: () {
+                // Copy message to clipboard
+                Navigator.pop(context);
+              },
             ),
-            actions: [
-              // Cancel button
-              TextButton(
-                onPressed: () {
+            if (!isCurrentUser) ...[
+              ListTile(
+                leading: Icon(Icons.report),
+                title: Text('Report message'),
+                onTap: () {
+                  chatService.reportUser(messageId, userId);
                   Navigator.pop(context);
-                },
-                child: const Text("Cancel"),
-              ),
-
-              // Report button
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ChatService().reportUser(messageId, userId);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Message reported")),
+                    SnackBar(content: Text('Message reported')),
                   );
                 },
-                child: const Text("Report"),
+              ),
+              ListTile(
+                leading: Icon(Icons.block),
+                title: Text('Block user'),
+                onTap: () {
+                  chatService.blockUser(userId);
+                  Navigator.pop(context);
+                  Navigator.pop(context); // Go back to home
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('User blocked')),
+                  );
+                },
               ),
             ],
-          ),
-    );
-  }
-
-  // Block user
-  void _blockUser(BuildContext context, String userId) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Block user"),
-            content: const Text("Are you sure you want to block this user?"),
-            actions: [
-              // Cancel button
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text("Cancel"),
-              ),
-
-              // Report button
-              TextButton(
-                onPressed: () {
-                  ChatService().blockUser(userId);
-
-                  // Close the dialog
-                  Navigator.pop(context);
-
-                  // Close the chat
-                  Navigator.pop(context);
-
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text("User blocked")));
-                },
-                child: const Text("Block"),
-              ),
-            ],
-          ),
+          ],
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode =
-        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
     return GestureDetector(
-      onLongPress: () {
-        if (!isCurrentUser) {
-          _showOptions(context, messageId, userId);
-        }
-      },
+      onLongPress: () => _showContextMenu(context),
       child: Container(
-        decoration: BoxDecoration(
-          color:
-              isCurrentUser
-                  ? (isDarkMode ? Colors.green.shade600 : Colors.green.shade500)
-                  : (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200),
-          borderRadius: BorderRadius.circular(12),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 25),
-        child: Text(
-          message,
-          style: TextStyle(
-            color:
-                isCurrentUser
-                    ? Colors.white
-                    : (isDarkMode ? Colors.white : Colors.black),
+        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 12),
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isCurrentUser
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.secondary,
+          borderRadius: BorderRadius.circular(16).copyWith(
+            bottomRight: isCurrentUser ? Radius.circular(0) : null,
+            bottomLeft: !isCurrentUser ? Radius.circular(0) : null,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message,
+              style: TextStyle(
+                color: isCurrentUser ? Colors.white : Colors.black,
+                fontSize: 16,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              DateFormat('h:mm a').format(DateTime.now()),
+              style: TextStyle(
+                color: isCurrentUser
+                    ? Colors.white.withOpacity(0.7)
+                    : Colors.black.withOpacity(0.5),
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ],
         ),
       ),
     );

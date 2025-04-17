@@ -1,4 +1,6 @@
+// lib/services/chat/chat_service.dart (rename from chart_service.dart)
 import 'package:chatapp/models/message.dart';
+import 'package:chatapp/services/encryption/encryption_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,13 @@ class ChatService extends ChangeNotifier {
   // Get instance of firestore
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final EncryptionService _encryptionService = EncryptionService();
+
+  // Initialize encryption method
+  Future<void> initializeEncryption() async {
+    // This is a placeholder method to satisfy the calls in other files
+    // The actual encryption is handled by the EncryptionService
+  }
 
   // Get user stream
   Stream<List<Map<String, dynamic>>> getUsersStream() {
@@ -42,23 +51,30 @@ class ChatService extends ChangeNotifier {
         });
   }
 
-  // Send message
-  Future<void> sendMessage(String receiverId, message) async {
+  // Send message with encryption
+  Future<void> sendMessage(String receiverId, String message) async {
     final String currentUserId = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email!;
     final Timestamp timestamp = Timestamp.now();
+
+    // Create chat room ID
+    List<String> ids = [currentUserId, receiverId];
+    ids.sort();
+    String chatRoomID = ids.join("_");
+    
+    // Get or create conversation key
+    String conversationKey = await _encryptionService.getOrCreateConversationKey(chatRoomID);
+    
+    // Encrypt message
+    String encryptedMessage = _encryptionService.encryptMessage(message, conversationKey);
 
     Message newMessage = Message(
       senderId: currentUserId,
       senderEmail: currentUserEmail,
       receiverId: receiverId,
-      message: message,
+      message: encryptedMessage, // Store encrypted message
       timestamp: timestamp,
     );
-
-    List<String> ids = [currentUserId, receiverId];
-    ids.sort();
-    String chatRoomID = ids.join("_");
 
     await _firestore
         .collection("chat_rooms")
@@ -79,6 +95,21 @@ class ChatService extends ChangeNotifier {
         .collection("messages")
         .orderBy("timestamp", descending: false)
         .snapshots();
+  }
+  
+  // Decrypt a message
+  Future<String> decryptMessage(String encryptedMessage, String chatRoomId) async {
+    try {
+      // Get conversation key
+      String conversationKey = await _encryptionService.getOrCreateConversationKey(chatRoomId);
+      
+      // Decrypt message
+      return _encryptionService.decryptMessage(encryptedMessage, conversationKey);
+    } catch (e) {
+      // Use logger instead of print in production
+      debugPrint("Error decrypting message: $e");
+      return "[Decryption error]";
+    }
   }
 
   // Report User

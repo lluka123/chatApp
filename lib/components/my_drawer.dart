@@ -1,3 +1,4 @@
+// lib/components/my_drawer.dart
 import "package:chatapp/services/auth/auth_service.dart";
 import "package:chatapp/pages/settings_page.dart";
 import "package:flutter/material.dart";
@@ -17,56 +18,95 @@ class MyDrawer extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Logo
+          // Logo and menu items
           Column(
             children: [
-              DrawerHeader(
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 child: Center(
-                  child: Icon(
-                    Icons.message,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 40,
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.message,
+                        color: Colors.white,
+                        size: 60,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        "SecureChat",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        "End-to-End Encrypted",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
 
               // Home List Tile
-              Padding(
-                padding: const EdgeInsets.only(left: 25.0),
-                child: ListTile(
-                  title: const Text("H O M E"),
-                  leading: const Icon(Icons.home),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
+              ListTile(
+                title: Text(
+                  "Home",
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
+                leading: Icon(
+                  Icons.home,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                },
               ),
 
               // Setting List Tile
-              Padding(
-                padding: const EdgeInsets.only(left: 25.0),
-                child: ListTile(
-                  title: const Text("S E T T I N G S"),
-                  leading: const Icon(Icons.settings),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SettingsPage(),
-                      ),
-                    );
-                  },
+              ListTile(
+                title: Text(
+                  "Settings",
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
+                leading: Icon(
+                  Icons.settings,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsPage(),
+                    ),
+                  );
+                },
               ),
+              
+              Divider(),
             ],
           ),
 
           // Logout Tile
           Padding(
-            padding: const EdgeInsets.only(left: 25.0, bottom: 25.0),
+            padding: const EdgeInsets.only(bottom: 25.0),
             child: ListTile(
-              title: const Text("L O G O U T"),
-              leading: const Icon(Icons.logout),
+              title: Text(
+                "Logout",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              leading: Icon(
+                Icons.logout,
+                color: Colors.red,
+              ),
               onTap: logout,
             ),
           ),

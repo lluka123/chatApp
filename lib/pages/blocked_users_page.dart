@@ -1,6 +1,6 @@
 import "package:chatapp/components/user_tile.dart";
 import "package:chatapp/services/auth/auth_service.dart";
-import "package:chatapp/services/chat/chart_service.dart";
+import "package:chatapp/services/chat/chat_service.dart";
 import "package:flutter/material.dart";
 
 class BlockedUsersPage extends StatelessWidget {

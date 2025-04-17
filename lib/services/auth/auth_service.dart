@@ -1,28 +1,28 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
-class AuthService {
-  // Instance of auth
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firebaseFirestore = FirebaseFirestore.instance;
+class AuthService extends ChangeNotifier {
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Get current user
   User? getCurrentUser() {
-    return _auth.currentUser;
+    return _firebaseAuth.currentUser;
   }
 
   // Sign in
-  Future<UserCredential> signInWithEmailPassword(String email, password) async {
+  Future<UserCredential> signInWithEmailPassword(
+    String email,
+    String password,
+  ) async {
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential =
+          await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      _firebaseFirestore.collection("users").doc(userCredential.user!.uid).set({
-        'uid': userCredential.user!.uid,
-        'email': userCredential.user!.email,
-      });
-
+      
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.code);
@@ -32,16 +32,20 @@ class AuthService {
   // Sign up
   Future<UserCredential> signUpWithEmailPassword(
     String email,
-    paswsword,
+    String password,
   ) async {
     try {
-      UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: paswsword);
+      UserCredential userCredential =
+          await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      _firebaseFirestore.collection("users").doc(userCredential.user!.uid).set({
+      // Create a new document for the user in the users collection
+      _firestore.collection('users').doc(userCredential.user!.uid).set({
         'uid': userCredential.user!.uid,
-        'email': userCredential.user!.email,
-      });
+        'email': email,
+      }, SetOptions(merge: true));
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
@@ -51,8 +55,6 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    return await _auth.signOut();
+    return await _firebaseAuth.signOut();
   }
-
-  // errors
 }
