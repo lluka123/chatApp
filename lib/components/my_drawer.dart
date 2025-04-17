@@ -44,11 +44,29 @@ class MyDrawer extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 5),
-                      Text(
-                        "End-to-End Encrypted",
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8 * 255.0),
-                          fontSize: 14,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.lock,
+                              color: Colors.white,
+                              size: 12,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "End-to-End Encrypted",
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9 * 255.0),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -57,30 +75,20 @@ class MyDrawer extends StatelessWidget {
               ),
 
               // Home List Tile
-              ListTile(
-                title: const Text(
-                  "Home",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                leading: Icon(
-                  Icons.home,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+              _buildDrawerItem(
+                context,
+                title: "Home",
+                icon: Icons.home,
                 onTap: () {
                   Navigator.pop(context);
                 },
               ),
 
               // Setting List Tile
-              ListTile(
-                title: const Text(
-                  "Settings",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                leading: Icon(
-                  Icons.settings,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+              _buildDrawerItem(
+                context,
+                title: "Settings",
+                icon: Icons.settings,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -98,20 +106,44 @@ class MyDrawer extends StatelessWidget {
           // Logout Tile
           Padding(
             padding: const EdgeInsets.only(bottom: 25.0),
-            child: ListTile(
-              title: const Text(
-                "Logout",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              leading: const Icon(
-                Icons.logout,
-                color: Colors.red,
-              ),
+            child: _buildDrawerItem(
+              context,
+              title: "Logout",
+              icon: Icons.logout,
+              isLogout: true,
               onTap: logout,
             ),
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildDrawerItem(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required VoidCallback onTap,
+    bool isLogout = false,
+  }) {
+    return ListTile(
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: isLogout ? Colors.red : null,
+        ),
+      ),
+      leading: Icon(
+        icon,
+        color: isLogout ? Colors.red : Theme.of(context).colorScheme.primary,
+      ),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      dense: true,
     );
   }
 }

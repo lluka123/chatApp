@@ -44,6 +44,10 @@ dependencies:
   flutter_secure_storage: ^8.0.0
   asn1lib: ^1.4.0
   logging: ^1.2.0
+  page_transition: ^2.0.9
+  flutter_staggered_animations: ^1.1.1
+  flutter_svg: ^2.0.5
+
 
 dev_dependencies:
   flutter_test:
