@@ -1,5 +1,4 @@
 // lib/pages/chat_page.dart
-import "package:chatapp/components/chat_bubble.dart";
 import "package:chatapp/services/auth/auth_service.dart";
 import "package:chatapp/services/chat/chat_service.dart";
 import "package:cloud_firestore/cloud_firestore.dart";
@@ -20,79 +19,61 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
+class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
-  late AnimationController _sendButtonController;
-  late Animation<double> _sendButtonAnimation;
+  final ScrollController _scrollController = ScrollController();
 
   final ChatService _chatService = ChatService();
   final AuthService _authService = AuthService();
 
   FocusNode myFocusNode = FocusNode();
-  bool _isLoading = false;
   bool _hasText = false;
+  bool _isInitialized = false;
+  
+  // To track the last message count for vibration
+  int _lastMessageCount = 0;
 
   @override
   void initState() {
     super.initState();
 
-    _sendButtonController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    
-    _sendButtonAnimation = CurvedAnimation(
-      parent: _sendButtonController,
-      curve: Curves.elasticOut,
-    );
-
     _messageController.addListener(() {
-      final hasText = _messageController.text.isNotEmpty;
-      if (hasText != _hasText) {
+      final newHasText = _messageController.text.isNotEmpty;
+      if (_hasText != newHasText) {
         setState(() {
-          _hasText = hasText;
+          _hasText = newHasText;
         });
-        if (hasText) {
-          _sendButtonController.forward();
-        } else {
-          _sendButtonController.reverse();
-        }
       }
     });
 
     myFocusNode.addListener(() {
       if (myFocusNode.hasFocus) {
-        Future.delayed(const Duration(milliseconds: 750), () => scrollDown());
+        Future.delayed(const Duration(milliseconds: 300), () => scrollDown());
       }
     });
 
-    Future.delayed(const Duration(milliseconds: 500), () => scrollDown());
-    
-    // Initialize encryption
-    _initializeEncryption();
+    // Initialize encryption in background
+    _initializeChat();
   }
   
-  Future<void> _initializeEncryption() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
+  Future<void> _initializeChat() async {
     await _chatService.initializeEncryption();
-    
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+      Future.delayed(const Duration(milliseconds: 300), () => scrollDown());
+    }
   }
 
   @override
   void dispose() {
-    _sendButtonController.dispose();
     myFocusNode.dispose();
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  final ScrollController _scrollController = ScrollController();
   void scrollDown() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -105,38 +86,26 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
 
   void sendMessage() async {
     if (_messageController.text.isNotEmpty) {
-      setState(() {
-        _isLoading = true;
-      });
-      
-      HapticFeedback.lightImpact();
+      // Save message and clear input
+      String messageText = _messageController.text;
+      _messageController.clear();
       
       try {
         await _chatService.sendMessage(
           widget.receiverId,
-          _messageController.text,
+          messageText,
         );
-
-        _messageController.clear();
-        scrollDown();
+        
+        // Scroll down after sending
+        Future.delayed(const Duration(milliseconds: 100), () => scrollDown());
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Error sending message: ${e.toString()}"),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.9),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+            backgroundColor: Colors.red,
           ),
         );
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
       }
     }
   }
@@ -148,16 +117,13 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       appBar: AppBar(
         title: Row(
           children: [
-            Hero(
-              tag: 'avatar_${widget.receiverId}',
-              child: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: Text(
-                  widget.receiverEmail[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+            CircleAvatar(
+              backgroundColor: const Color(0xFF1E88E5),
+              child: Text(
+                widget.receiverEmail[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -199,70 +165,29 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.arrow_back,
-              color: Theme.of(context).colorScheme.primary,
-              size: 20,
-            ),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Color(0xFF1E88E5),
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.more_vert,
-                color: Theme.of(context).colorScheme.primary,
-                size: 20,
-              ),
-            ),
-            onPressed: () {
-              // Show chat options
-            },
-          ),
-          const SizedBox(width: 8),
+      ),
+      body: Column(
+        children: [
+          Expanded(child: _buildMessageList()),
+          _buildUserInput(),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Setting up secure connection...",
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : Column(
-              children: [
-                Expanded(child: _buildMessageList()),
-                _buildUserInput(),
-              ],
-            ),
     );
   }
 
   Widget _buildMessageList() {
+    if (!_isInitialized) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    
     String senderId = _authService.getCurrentUser()!.uid;
     List<String> ids = [senderId, widget.receiverId];
     ids.sort();
@@ -272,99 +197,69 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       stream: _chatService.getMessages(senderId, widget.receiverId),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 48,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Error loading messages",
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+          return const Center(
+            child: Text("Error loading messages"),
           );
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          return const Center(
+            child: CircularProgressIndicator(),
           );
         }
 
+        // Check for new messages to vibrate
+        if (snapshot.data != null && snapshot.data!.docs.isNotEmpty) {
+          final currentMessageCount = snapshot.data!.docs.length;
+          
+          // If we have more messages than before and this isn't the first load
+          if (_lastMessageCount > 0 && currentMessageCount > _lastMessageCount) {
+            final latestMessage = snapshot.data!.docs.last;
+            
+            // Only vibrate if the message is from the other person
+            if (latestMessage['senderId'] != senderId) {
+              // Vibrate phone - use a stronger vibration pattern
+              HapticFeedback.heavyImpact();
+              
+              // For older devices that might not support haptic feedback well
+              Future.delayed(const Duration(milliseconds: 100), () {
+                HapticFeedback.vibrate();
+              });
+            }
+          }
+          
+          // Update the message count
+          _lastMessageCount = currentMessageCount;
+        }
+
+        // Make sure we scroll down when new messages arrive
         WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
 
         if (snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.chat_bubble_outline,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "No messages yet",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Start the conversation!",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
+          return const Center(
+            child: Text("No messages yet"),
           );
         }
 
         return ListView(
           controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          padding: const EdgeInsets.all(16),
           children: snapshot.data!.docs.map((doc) {
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
             
             return FutureBuilder<String>(
-              future: _chatService.decryptMessageFromDoc(
-                data, 
-                chatRoomID
-              ),
+              future: _chatService.decryptMessageFromDoc(data, chatRoomID),
               builder: (context, decryptSnapshot) {
                 if (decryptSnapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(height: 0);
+                  return const SizedBox.shrink();
                 }
                 
                 bool isCurrentUser = data['senderId'] == senderId;
                 
-                return _buildMessageListItem(
-                  doc, 
-                  decryptSnapshot.data ?? "[Decryption error]",
-                  isCurrentUser
+                return _buildMessageItem(
+                  decryptSnapshot.data ?? "[Error decrypting]",
+                  isCurrentUser,
+                  data['timestamp'] as Timestamp,
                 );
               },
             );
@@ -374,16 +269,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMessageListItem(
-    DocumentSnapshot doc, 
-    String decryptedMessage,
-    bool isCurrentUser
-  ) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    var alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
-    
-    // Format timestamp
-    Timestamp timestamp = data['timestamp'] as Timestamp;
+  Widget _buildMessageItem(String message, bool isCurrentUser, Timestamp timestamp) {
+    // Format time
     DateTime messageTime = timestamp.toDate();
     String formattedTime = "${messageTime.hour}:${messageTime.minute.toString().padLeft(2, '0')}";
 
@@ -396,30 +283,15 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isCurrentUser 
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.grey[100],
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: isCurrentUser ? const Radius.circular(16) : const Radius.circular(4),
-                bottomRight: isCurrentUser ? const Radius.circular(4) : const Radius.circular(16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              color: isCurrentUser ? const Color(0xFF1E88E5) : Colors.grey[100],
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              decryptedMessage,
+              message,
               style: TextStyle(
                 color: isCurrentUser ? Colors.white : Colors.black87,
-                fontSize: 16,
               ),
             ),
           ),
@@ -438,108 +310,45 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     );
   }
 
-    Widget _buildUserInput() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+  Widget _buildUserInput() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: _messageController,
+                  focusNode: myFocusNode,
+                  decoration: const InputDecoration(
+                    hintText: "Type a message",
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E88E5),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: IconButton(
+              onPressed: sendMessage,
+              icon: const Icon(
+                Icons.send,
+                color: Colors.white,
+              ),
+            ),
           ),
         ],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 50, // Fixed height to ensure consistent sizing
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50, // Light blue background
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: TextField(
-                          controller: _messageController,
-                          focusNode: myFocusNode,
-                          decoration: const InputDecoration(
-                            hintText: "Type a message",
-                            border: InputBorder.none,
-                            hintStyle: TextStyle(color: Colors.grey),
-                            // Remove any padding that might be causing the issue
-                            contentPadding: EdgeInsets.zero,
-                            isDense: true,
-                          ),
-                          style: const TextStyle(fontSize: 16),
-                          maxLines: 1, // Start with one line
-                          minLines: 1, // Minimum one line
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.emoji_emotions_outlined,
-                        color: Colors.grey[600],
-                      ),
-                      onPressed: () {
-                        // Show emoji picker
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            ScaleTransition(
-              scale: _sendButtonAnimation,
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed: _isLoading ? null : sendMessage,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.send_rounded,
-                          color: Colors.white,
-                        ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

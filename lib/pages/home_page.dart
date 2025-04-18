@@ -1,11 +1,11 @@
 // lib/pages/home_page.dart
 import "package:chatapp/components/my_drawer.dart";
-import "package:chatapp/components/user_tile.dart";
 import "package:chatapp/pages/chat_page.dart";
 import "package:chatapp/services/auth/auth_service.dart";
 import "package:chatapp/services/chat/chat_service.dart";
+import "package:cloud_firestore/cloud_firestore.dart";
 import "package:flutter/material.dart";
-import "package:flutter_staggered_animations/flutter_staggered_animations.dart";
+import "package:flutter/services.dart";
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,48 +14,45 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
-  // Chat & Auth service
+class _HomePageState extends State<HomePage> {
+  // Services
   final AuthService _authService = AuthService();
-  final ChatService chatService = ChatService();
+  final ChatService _chatService = ChatService();
+  
+  // Loading state
   bool _isLoading = true;
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  
+  // For demonstration, we'll hardcode some users with unread messages
+  // In a real app, you would track this in your database
+  final List<String> _usersWithUnreadMessages = ['user123', 'user456'];
   
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
+    _initializeApp();
     
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeIn,
-    );
-    
-    _initializeEncryption();
+    // For demonstration purposes, let's add a timer to simulate a new message
+    // after 5 seconds to test the notification
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() {
+          // Add a random user ID to the unread messages list
+          _usersWithUnreadMessages.add('randomUser789');
+        });
+        // Vibrate the phone
+        HapticFeedback.vibrate();
+      }
+    });
   }
   
-  Future<void> _initializeEncryption() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _initializeApp() async {
+    await _chatService.initializeEncryption();
     
-    await chatService.initializeEncryption();
-    
-    setState(() {
-      _isLoading = false;
-    });
-    
-    _fadeController.forward();
-  }
-  
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    super.dispose();
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -64,7 +61,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
-          "SecureChat",
+          "Cryptiq",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 22,
@@ -74,300 +71,156 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1E88E5)),
-        actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.search,
-                color: Color(0xFF1E88E5),
-                size: 20,
-              ),
-            ),
-            onPressed: () {
-              // Implement search functionality
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       drawer: const MyDrawer(),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+          ? const Center(
+              child: CircularProgressIndicator(),
             )
-          : FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E88E5).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.lock,
-                            color: Color(0xFF1E88E5),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              "Your messages are end-to-end encrypted",
-                              style: TextStyle(
-                                color: const Color(0xFF1E88E5),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(child: _buildUserList()),
-                ],
-              ),
-            ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1E88E5).withOpacity(0.3),
-              blurRadius: 10,
-              spreadRadius: 0,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: FloatingActionButton(
-          onPressed: () {
-            // Add new chat or contact
-          },
-          backgroundColor: const Color(0xFF1E88E5),
-          elevation: 0,
-          child: const Icon(Icons.chat, color: Colors.white),
-        ),
-      ),
+          : _buildUserList(),
     );
   }
 
   Widget _buildUserList() {
     return StreamBuilder(
-      stream: chatService.getUsersStreamExceptBlocked(),
+      stream: _chatService.getUsersStreamExceptBlocked(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.red[300],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Error loading users",
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+          return const Center(
+            child: Text("Error loading users"),
           );
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          return const Center(
+            child: CircularProgressIndicator(),
           );
         }
         
         final users = snapshot.data!;
         
         if (users.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E88E5).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.people_outline,
-                    size: 64,
-                    color: const Color(0xFF1E88E5),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "No users available",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1E88E5),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Start a new conversation",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
+          return const Center(
+            child: Text("No users available"),
           );
         }
 
-        return AnimationLimiter(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final userData = users[index];
-              if (userData["email"] != _authService.getCurrentUser()!.email) {
-                return AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 375),
-                  child: SlideAnimation(
-                    verticalOffset: 50.0,
-                    child: FadeInAnimation(
-                      child: _buildUserTile(userData),
-                    ),
-                  ),
-                );
-              } else {
-                return Container();
-              }
-            },
-          ),
+        return ListView.builder(
+          padding: const EdgeInsets.all(8),
+          itemCount: users.length,
+          itemBuilder: (context, index) {
+            final userData = users[index];
+            if (userData["email"] != _authService.getCurrentUser()!.email) {
+              // For demonstration, we'll mark some users as having unread messages
+              // In a real app, you would check your database
+              bool hasUnreadMessages = index % 3 == 0; // Every third user has unread messages
+              
+              return _buildUserTile(userData, hasUnreadMessages);
+            } else {
+              return Container();
+            }
+          },
         );
       },
     );
   }
   
-  Widget _buildUserTile(Map<String, dynamic> userData) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
+  Widget _buildUserTile(Map<String, dynamic> userData, bool hasUnreadMessages) {
+    // Get first letter of email for avatar
+    String firstLetter = userData["email"][0].toUpperCase();
+    
+    // Determine avatar color based on first letter
+    Color avatarColor;
+    if (firstLetter == 'J') {
+      avatarColor = Colors.blue;
+    } else if (firstLetter == 'M') {
+      avatarColor = Colors.purple;
+    } else if (firstLetter == 'L') {
+      avatarColor = Colors.green;
+    } else {
+      avatarColor = Colors.blue;
+    }
+    
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => ChatPage(
-                  receiverEmail: userData["email"],
-                  receiverId: userData["uid"],
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CircleAvatar(
+              backgroundColor: avatarColor,
+              radius: 20,
+              child: Text(
+                firstLetter,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  const begin = Offset(1.0, 0.0);
-                  const end = Offset.zero;
-                  const curve = Curves.easeInOut;
-                  
-                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                  var offsetAnimation = animation.drive(tween);
-                  
-                  return SlideTransition(
-                    position: offsetAnimation,
-                    child: child,
-                  );
-                },
               ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: const Color(0xFF1E88E5),
-                  child: Text(
-                    userData["email"][0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userData["email"],
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.lock_outline,
-                            size: 14,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "Tap to start secure chat",
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey[400],
-                ),
-              ],
             ),
+            // Show a notification dot if there are unread messages
+            if (hasUnreadMessages)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        title: Text(
+          userData["email"],
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 16,
           ),
         ),
+        subtitle: Row(
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 12,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(width: 4),
+            Text(
+              "Tap to start secure chat",
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        onTap: () {
+          // Vibrate when tapping on a chat with unread messages
+          if (hasUnreadMessages) {
+            HapticFeedback.mediumImpact();
+          }
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatPage(
+                receiverEmail: userData["email"],
+                receiverId: userData["uid"],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

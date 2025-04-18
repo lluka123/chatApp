@@ -1,11 +1,9 @@
+// lib/main.dart
 import 'package:chatapp/services/auth/auth_gate.dart';
 import 'package:chatapp/firebase_options.dart';
-import 'package:chatapp/themes/theme_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
-import 'package:page_transition/page_transition.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,12 +15,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      child: const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -32,20 +25,26 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'SecureChat',
+      title: 'Cryptiq',
       home: const AuthGate(),
-      theme: Provider.of<ThemeProvider>(context).themeData,
-      onGenerateRoute: (settings) {
-        switch (settings.name) {
-          default:
-            return PageTransition(
-              type: PageTransitionType.fade,
-              child: const AuthGate(),
-              settings: settings,
-              duration: const Duration(milliseconds: 300),
-            );
-        }
-      },
+      theme: ThemeData(
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF1E88E5),
+          onPrimary: Colors.white,
+          secondary: Color(0xFFE3F2FD),
+          tertiary: Color(0xFFBBDEFB),
+          surface: Colors.white,
+          error: Colors.redAccent,
+        ),
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF1E88E5),
+          iconTheme: IconThemeData(color: Color(0xFF1E88E5)),
+        ),
+      ),
     );
   }
 }

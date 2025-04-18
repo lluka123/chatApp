@@ -1,9 +1,6 @@
 // lib/pages/login_page.dart
 import "package:chatapp/services/auth/auth_service.dart";
-import "package:chatapp/components/my_button.dart";
-import "package:chatapp/components/my_textfield.dart";
 import "package:flutter/material.dart";
-import "package:flutter_svg/flutter_svg.dart";
 
 class LoginPage extends StatefulWidget {
   final void Function()? onTap;
@@ -14,34 +11,17 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeIn,
-    );
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
+  bool _isLoading = false;
 
   // Login Method
   void login() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
     final authService = AuthService();
 
     try {
@@ -54,291 +34,163 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(
-            "Login Failed",
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          title: const Text("Login Failed"),
           content: Text(e.toString()),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(
-                "OK",
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
+              child: const Text("OK"),
             ),
           ],
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background with shapes
-          Positioned.fill(
-            child: CustomPaint(
-              painter: BackgroundPainter(),
-            ),
-          ),
-          
-          // Content
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 25),
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Logo
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                                blurRadius: 20,
-                                spreadRadius: 5,
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.message,
-                            size: 50,
-                            color: Colors.white,
-                          ),
-                        ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(25),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 100,
+                ),
                 
-                        const SizedBox(height: 40),
+                const SizedBox(height: 20),
                 
-                        // Welcome text
-                        Text(
-                          "Welcome back!",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 10),
-                        
-                        Text(
-                          "We've missed you",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                            fontSize: 16,
-                          ),
-                        ),
+                // App name
+                const Text(
+                  "Cryptiq",
+                  style: TextStyle(
+                    color: Color(0xFF1E88E5),
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 
-                        const SizedBox(height: 40),
+                const SizedBox(height: 10),
                 
-                        // Email field
-                        _buildTextField(
-                          controller: _emailController,
-                          hintText: "Email",
-                          prefixIcon: Icons.email_outlined,
-                          obscureText: false,
-                        ),
+                const Text(
+                  "Welcome back!",
+                  style: TextStyle(
+                    color: Color(0xFF1E88E5),
+                    fontSize: 16,
+                  ),
+                ),
                 
-                        const SizedBox(height: 20),
+                const SizedBox(height: 40),
                 
-                        // Password field
-                        _buildTextField(
-                          controller: _passwordController,
-                          hintText: "Password",
-                          prefixIcon: Icons.lock_outline,
-                          obscureText: true,
-                        ),
-                        
-                        // Forgot password
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              // Handle forgot password
-                            },
-                            child: Text(
-                              "Forgot password?",
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                
-                        const SizedBox(height: 25),
-                
-                        // Login button
-                        _buildLoginButton(),
-                
-                        const SizedBox(height: 30),
-                
-                        // Register option
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Don't have an account? ",
-                              style: TextStyle(
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: widget.onTap,
-                              child: Text(
-                                "Register now",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                // Email field
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    hintText: "Email",
+                    prefixIcon: const Icon(Icons.email),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF1E88E5), width: 2),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hintText,
-    required IconData prefixIcon,
-    required bool obscureText,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 0,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        decoration: InputDecoration(
-          hintText: hintText,
-          prefixIcon: Icon(
-            prefixIcon,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(vertical: 20),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoginButton() {
-    return Container(
-      width: double.infinity,
-      height: 60,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primary.withOpacity(0.8),
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-            blurRadius: 10,
-            spreadRadius: 0,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: login,
-          borderRadius: BorderRadius.circular(30),
-          child: const Center(
-            child: Text(
-              "Login",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+                
+                const SizedBox(height: 20),
+                
+                // Password field
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    hintText: "Password",
+                    prefixIcon: const Icon(Icons.lock),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF1E88E5), width: 2),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Login button
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E88E5),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.blue.shade200,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: _isLoading 
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Login",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                  ),
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Register option
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Don't have an account?"),
+                    TextButton(
+                      onPressed: () => widget.onTap?.call(),
+                      child: const Text(
+                        "Register now",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E88E5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
-}
-
-// Background painter for decorative shapes
-class BackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF1E88E5).withOpacity(0.05)
-      ..style = PaintingStyle.fill;
-      
-    // Top right circle
-    canvas.drawCircle(
-      Offset(size.width * 1.2, -size.height * 0.2),
-      size.width * 0.6,
-      paint,
-    );
-    
-    // Bottom left circle
-    canvas.drawCircle(
-      Offset(-size.width * 0.2, size.height * 1.2),
-      size.width * 0.6,
-      paint..color = const Color(0xFF1E88E5).withOpacity(0.07),
-    );
-    
-    // Middle small circle
-    canvas.drawCircle(
-      Offset(size.width * 0.8, size.height * 0.5),
-      size.width * 0.1,
-      paint..color = const Color(0xFF1E88E5).withOpacity(0.05),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
