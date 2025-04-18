@@ -17,10 +17,10 @@ class MyButton extends StatefulWidget {
   State<MyButton> createState() => _MyButtonState();
 }
 
-class _MyButtonState extends State<MyButton> with SingleTickerProviderStateMixin {
+class _MyButtonState extends State<MyButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  bool _isPressed = false;
 
   @override
   void initState() {
@@ -45,19 +45,16 @@ class _MyButtonState extends State<MyButton> with SingleTickerProviderStateMixin
     return GestureDetector(
       onTapDown: (_) {
         if (!widget.isLoading && widget.onTap != null) {
-          setState(() => _isPressed = true);
           _controller.forward();
         }
       },
       onTapUp: (_) {
         if (!widget.isLoading && widget.onTap != null) {
-          setState(() => _isPressed = false);
           _controller.reverse();
         }
       },
       onTapCancel: () {
         if (!widget.isLoading && widget.onTap != null) {
-          setState(() => _isPressed = false);
           _controller.reverse();
         }
       },
@@ -77,7 +74,10 @@ class _MyButtonState extends State<MyButton> with SingleTickerProviderStateMixin
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3 * 255.0),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withOpacity(0.3),
                 blurRadius: 10,
                 offset: const Offset(0, 5),
                 spreadRadius: -2,

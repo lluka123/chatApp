@@ -1,9 +1,7 @@
 // lib/pages/home_page.dart
-import "package:chatapp/components/my_drawer.dart";
 import "package:chatapp/pages/chat_page.dart";
 import "package:chatapp/services/auth/auth_service.dart";
 import "package:chatapp/services/chat/chat_service.dart";
-import "package:cloud_firestore/cloud_firestore.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 
@@ -55,6 +53,33 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Logout function
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Logout"),
+        content: const Text("Are you sure you want to logout?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _authService.signOut();
+            },
+            child: const Text(
+              "Logout",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -70,9 +95,11 @@ class _HomePageState extends State<HomePage> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1E88E5)),
+        leading: IconButton(
+          icon: const Icon(Icons.logout, color: Color(0xFF1E88E5)),
+          onPressed: _logout,
+        ),
       ),
-      drawer: const MyDrawer(),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(),
