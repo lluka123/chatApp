@@ -4,6 +4,7 @@ import "package:chatapp/services/chat/chat_service.dart";
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
+import "package:logging/logging.dart";
 
 class ChatPage extends StatefulWidget {
   final String receiverEmail;
@@ -20,60 +21,76 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  // Controllers for input and scrolling
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  // Services
   final ChatService _chatService = ChatService();
   final AuthService _authService = AuthService();
+  final Logger _logger = Logger('ChatPage');
 
+  // Focus node for keyboard
   FocusNode myFocusNode = FocusNode();
-  bool _hasText = false;
-  bool _isInitialized = false;
 
-  // To track the last message count for vibration
+  // State variables
+  bool _hasText = false; // Now used to enable/disable send button
+  bool _isInitialized = false;
   int _lastMessageCount = 0;
 
   @override
   void initState() {
     super.initState();
 
+    // Check if there's text in the input field
     _messageController.addListener(() {
-      final newHasText = _messageController.text.isNotEmpty;
-      if (_hasText != newHasText) {
-        setState(() {
-          _hasText = newHasText;
+      setState(() {
+        _hasText = _messageController.text.isNotEmpty;
+      });
+    });
+
+    // Scroll down when keyboard appears
+    myFocusNode.addListener(() {
+      if (myFocusNode.hasFocus) {
+        // Wait a bit before scrolling down
+        Future.delayed(const Duration(milliseconds: 300), () {
+          scrollDown();
         });
       }
     });
 
-    myFocusNode.addListener(() {
-      if (myFocusNode.hasFocus) {
-        Future.delayed(const Duration(milliseconds: 300), () => scrollDown());
-      }
-    });
-
-    // Initialize encryption in background
-    _initializeChat();
+    // Initialize encryption
+    initializeChat();
   }
 
-  Future<void> _initializeChat() async {
+  // Initialize chat function
+  void initializeChat() async {
+    // Initialize encryption service
     await _chatService.initializeEncryption();
+
     if (mounted) {
+      // Check if widget is still mounted
       setState(() {
         _isInitialized = true;
       });
-      Future.delayed(const Duration(milliseconds: 300), () => scrollDown());
+
+      // Scroll to bottom
+      Future.delayed(const Duration(milliseconds: 300), () {
+        scrollDown();
+      });
     }
   }
 
   @override
   void dispose() {
+    // Clean up controllers
     myFocusNode.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  // Function to scroll to bottom of chat
   void scrollDown() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -84,28 +101,39 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  // Send message function
   void sendMessage() async {
+    // Check if message is not empty
     if (_messageController.text.isNotEmpty) {
-      // Save message and clear input
-      String messageText = _messageController.text;
+      // Get message text
+      String message = _messageController.text;
+
+      // Clear input field
       _messageController.clear();
 
       try {
+        // Send encrypted message
         await _chatService.sendMessage(
           widget.receiverId,
-          messageText,
+          message,
         );
 
         // Scroll down after sending
-        Future.delayed(const Duration(milliseconds: 100), () => scrollDown());
+        Future.delayed(const Duration(milliseconds: 100), () {
+          scrollDown();
+        });
       } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error sending message: ${e.toString()}"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Show error if sending fails - with mounted check
+        _logger.warning("Failed to send message: $e");
+        if (mounted) {
+          // Added to fix the BuildContext async gap issue
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error sending message: $e"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -117,6 +145,7 @@ class _ChatPageState extends State<ChatPage> {
       appBar: AppBar(
         title: Row(
           children: [
+            // User avatar
             CircleAvatar(
               backgroundColor: const Color(0xFF1E88E5),
               child: Text(
@@ -128,10 +157,12 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
             const SizedBox(width: 12),
+            // User details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Email
                   Text(
                     widget.receiverEmail,
                     style: const TextStyle(
@@ -140,6 +171,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
+                  // Encryption indicator
                   Row(
                     children: [
                       Icon(
@@ -174,29 +206,39 @@ class _ChatPageState extends State<ChatPage> {
       ),
       body: Column(
         children: [
-          Expanded(child: _buildMessageList()),
-          _buildUserInput(),
+          // Messages list
+          Expanded(child: buildMessageList()),
+          // Input field
+          buildUserInput(),
         ],
       ),
     );
   }
 
-  Widget _buildMessageList() {
+  // Build the message list
+  Widget buildMessageList() {
+    // Show loading indicator while initializing
     if (!_isInitialized) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
+    // Get current user ID
     String senderId = _authService.getCurrentUser()!.uid;
+
+    // Create chat room ID
     List<String> ids = [senderId, widget.receiverId];
     ids.sort();
     String chatRoomID = ids.join("_");
 
+    // Stream builder for messages
     return StreamBuilder(
       stream: _chatService.getMessages(senderId, widget.receiverId),
       builder: (context, snapshot) {
+        // Handle loading and error states
         if (snapshot.hasError) {
+          _logger.warning("Error in message stream: ${snapshot.error}");
           return const Center(
             child: Text("Error loading messages"),
           );
@@ -210,55 +252,59 @@ class _ChatPageState extends State<ChatPage> {
 
         // Check for new messages to vibrate
         if (snapshot.data != null && snapshot.data!.docs.isNotEmpty) {
-          final currentMessageCount = snapshot.data!.docs.length;
+          int currentCount = snapshot.data!.docs.length;
 
-          // If we have more messages than before and this isn't the first load
-          if (_lastMessageCount > 0 &&
-              currentMessageCount > _lastMessageCount) {
-            final latestMessage = snapshot.data!.docs.last;
+          // If we have more messages than before
+          if (_lastMessageCount > 0 && currentCount > _lastMessageCount) {
+            var lastMessage = snapshot.data!.docs.last;
 
-            // Only vibrate if the message is from the other person
-            if (latestMessage['senderId'] != senderId) {
-              // Vibrate phone - use a stronger vibration pattern
-              HapticFeedback.heavyImpact();
-
-              // For older devices that might not support haptic feedback well
-              Future.delayed(const Duration(milliseconds: 100), () {
-                HapticFeedback.vibrate();
-              });
+            // Check if message is from other person
+            if (lastMessage['senderId'] != senderId) {
+              // Make phone vibrate
+              HapticFeedback.vibrate();
+              _logger.info("New message received - vibrating");
             }
           }
 
-          // Update the message count
-          _lastMessageCount = currentMessageCount;
+          // Update count
+          _lastMessageCount = currentCount;
         }
 
-        // Make sure we scroll down when new messages arrive
-        WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
+        // Scroll down when new messages arrive
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          scrollDown();
+        });
 
+        // Show message if no messages
         if (snapshot.data!.docs.isEmpty) {
           return const Center(
             child: Text("No messages yet"),
           );
         }
 
+        // Build message list
         return ListView(
           controller: _scrollController,
           padding: const EdgeInsets.all(16),
           children: snapshot.data!.docs.map((doc) {
+            // Get message data
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
+            // Decrypt message
             return FutureBuilder<String>(
               future: _chatService.decryptMessageFromDoc(data, chatRoomID),
               builder: (context, decryptSnapshot) {
+                // Show nothing while decrypting
                 if (decryptSnapshot.connectionState ==
                     ConnectionState.waiting) {
                   return const SizedBox.shrink();
                 }
 
+                // Check if message is from current user
                 bool isCurrentUser = data['senderId'] == senderId;
 
-                return _buildMessageItem(
+                // Build message bubble
+                return buildMessageItem(
                   decryptSnapshot.data ?? "[Error decrypting]",
                   isCurrentUser,
                   data['timestamp'] as Timestamp,
@@ -271,24 +317,30 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _buildMessageItem(
+  // Build a message bubble
+  Widget buildMessageItem(
       String message, bool isCurrentUser, Timestamp timestamp) {
-    // Format time
+    // Format the time
     DateTime messageTime = timestamp.toDate();
     String formattedTime =
         "${messageTime.hour}:${messageTime.minute.toString().padLeft(2, '0')}";
 
+    // Message bubble
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
+        // Align to right or left based on sender
         crossAxisAlignment:
             isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
+          // Message content
           Container(
+            // Limit width to 75% of screen
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
             padding: const EdgeInsets.all(12),
+            // Different color based on sender
             decoration: BoxDecoration(
               color: isCurrentUser ? const Color(0xFF1E88E5) : Colors.grey[100],
               borderRadius: BorderRadius.circular(16),
@@ -300,6 +352,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
           ),
+          // Time stamp
           Padding(
             padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
             child: Text(
@@ -315,11 +368,13 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _buildUserInput() {
+  // Build the message input area
+  Widget buildUserInput() {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
+          // Text input
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -340,13 +395,14 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
           const SizedBox(width: 8),
+          // Send button with enabled/disabled state based on _hasText
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF1E88E5),
+              color: _hasText ? const Color(0xFF1E88E5) : Colors.grey[300],
               borderRadius: BorderRadius.circular(24),
             ),
             child: IconButton(
-              onPressed: sendMessage,
+              onPressed: _hasText ? sendMessage : null, // Now using _hasText
               icon: const Icon(
                 Icons.send,
                 color: Colors.white,

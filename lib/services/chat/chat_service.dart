@@ -4,6 +4,7 @@ import 'package:chatapp/services/encryption/encryption_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 
 class ChatService extends ChangeNotifier {
   // Firebase stuff
@@ -12,11 +13,13 @@ class ChatService extends ChangeNotifier {
 
   // Create our encryption service
   final EncryptionService _encryptionService = EncryptionService();
+  // Create a logger
+  final Logger _logger = Logger('ChatService');
 
   // This is just here because I need it in other files
   Future<void> initializeEncryption() async {
     // Nothing to do here, but I need this function
-    print("Initializing encryption...");
+    _logger.info("Initializing encryption...");
   }
 
   // Get all users from Firebase
@@ -100,9 +103,9 @@ class ChatService extends ChangeNotifier {
           .collection("messages")
           .add(newMessage.toMap());
 
-      print("Message sent and encrypted!");
+      _logger.info("Message sent and encrypted!");
     } catch (e) {
-      print("Error sending message: $e");
+      _logger.warning("Error sending message: $e");
     }
   }
 
@@ -136,7 +139,7 @@ class ChatService extends ChangeNotifier {
       // Decrypt
       return _encryptionService.decryptMessage(encrypted, iv, key);
     } catch (e) {
-      print("Error decrypting: $e");
+      _logger.warning("Error decrypting: $e");
       return "[Decryption error]";
     }
   }
@@ -151,7 +154,7 @@ class ChatService extends ChangeNotifier {
       // Decrypt (without IV for old messages)
       return _encryptionService.decryptMessage(encryptedMessage, '', key);
     } catch (e) {
-      print("Error with old decryption: $e");
+      _logger.warning("Error with old decryption: $e");
       return "[Encrypted message]";
     }
   }
@@ -171,9 +174,9 @@ class ChatService extends ChangeNotifier {
     // Save report to Firebase
     try {
       await _firestore.collection('reports').add(report);
-      print("User reported successfully");
+      _logger.info("User reported successfully");
     } catch (e) {
-      print("Error reporting user: $e");
+      _logger.warning("Error reporting user: $e");
     }
   }
 
@@ -190,10 +193,10 @@ class ChatService extends ChangeNotifier {
           .doc(userId)
           .set({});
 
-      print("User blocked successfully");
+      _logger.info("User blocked successfully");
       notifyListeners();
     } catch (e) {
-      print("Error blocking user: $e");
+      _logger.warning("Error blocking user: $e");
     }
   }
 
@@ -210,9 +213,9 @@ class ChatService extends ChangeNotifier {
           .doc(blockedUserId)
           .delete();
 
-      print("User unblocked successfully");
+      _logger.info("User unblocked successfully");
     } catch (e) {
-      print("Error unblocking user: $e");
+      _logger.warning("Error unblocking user: $e");
     }
   }
 

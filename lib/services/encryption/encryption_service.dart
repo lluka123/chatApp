@@ -4,12 +4,14 @@ import 'dart:math';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 
 class EncryptionService {
   // Firebase stuff
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Create a logger
+  final Logger _logger = Logger('EncryptionService');
 
   // Make a random key for encryption
   String makeRandomKey() {
@@ -24,7 +26,7 @@ class EncryptionService {
 
     // Turn it into base64 because that's what the encrypt package needs
     String key = base64Encode(numbers);
-    print("Created new encryption key!");
+    _logger.info("Created new encryption key!");
     return key;
   }
 
@@ -34,7 +36,7 @@ class EncryptionService {
     // Check if user is logged in
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      print("Error: Not logged in!");
+      _logger.warning("Error: Not logged in!");
       return;
     }
 
@@ -49,9 +51,9 @@ class EncryptionService {
         'encryptedKey': key,
         'timestamp': FieldValue.serverTimestamp(),
       });
-      print("Key saved successfully!");
+      _logger.info("Key saved successfully!");
     } catch (e) {
-      print("Error saving key: $e");
+      _logger.severe("Error saving key: $e");
     }
   }
 
@@ -70,7 +72,7 @@ class EncryptionService {
       // Do the encryption
       final encrypted = encrypter.encrypt(message, iv: iv);
 
-      print("Message encrypted successfully!");
+      _logger.info("Message encrypted successfully!");
 
       // Return the encrypted message and IV
       return {
@@ -79,7 +81,7 @@ class EncryptionService {
       };
     } catch (e) {
       // If something goes wrong, just return the original message
-      print("Encryption failed: $e");
+      _logger.warning("Encryption failed: $e");
       return {
         'encryptedText': message,
         'iv': '',
@@ -102,11 +104,11 @@ class EncryptionService {
 
       // Decrypt the message
       String decrypted = encrypter.decrypt64(encryptedMessage, iv: iv);
-      print("Message decrypted successfully!");
+      _logger.info("Message decrypted successfully!");
       return decrypted;
     } catch (e) {
       // If decryption fails, show an error message
-      print("Decryption failed: $e");
+      _logger.warning("Decryption failed: $e");
       return "[Could not decrypt message]";
     }
   }
@@ -116,7 +118,7 @@ class EncryptionService {
     // Check if user is logged in
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      print("Error: Not logged in!");
+      _logger.severe("Error: Not logged in!");
       throw Exception("Not logged in");
     }
 
@@ -133,12 +135,12 @@ class EncryptionService {
       if (keyDoc.exists &&
           keyDoc.data() != null &&
           keyDoc.data()!['key'] != null) {
-        print("Found existing key!");
+        _logger.info("Found existing key!");
         return keyDoc.data()!['key'];
       }
 
       // Otherwise create a new key
-      print("No key found, creating new one...");
+      _logger.info("No key found, creating new one...");
       final newKey = makeRandomKey();
 
       // Save the new key
@@ -153,11 +155,11 @@ class EncryptionService {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      print("New key created and saved!");
+      _logger.info("New key created and saved!");
       return newKey;
     } catch (e) {
       // Show error and rethrow
-      print("Error with chat key: $e");
+      _logger.severe("Error with chat key: $e");
       throw Exception("Failed to get or create key: $e");
     }
   }
