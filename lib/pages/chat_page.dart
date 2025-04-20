@@ -34,28 +34,38 @@ class _ChatPageState extends State<ChatPage> {
   FocusNode myFocusNode = FocusNode();
 
   // State variables
-  bool _hasText = false; // Now used to enable/disable send button
+  bool _hasText = false;
   bool _isInitialized = false;
   int _lastMessageCount = 0;
+
+  // Variable to track keyboard status
+  bool _isKeyboardVisible = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Check if there's text in the input field
-    _messageController.addListener(() {
-      setState(() {
-        _hasText = _messageController.text.isNotEmpty;
-      });
-    });
+    // Instead of using a listener that calls setState for every keystroke,
+    // we'll update _hasText when sending a message or in onChanged
+    _messageController.text = ""; // Start empty
+    _hasText = false;
 
-    // Scroll down when keyboard appears
+    // Handle keyboard showing/hiding better
     myFocusNode.addListener(() {
-      if (myFocusNode.hasFocus) {
-        // Wait a bit before scrolling down
-        Future.delayed(const Duration(milliseconds: 300), () {
-          scrollDown();
+      // Only update state if keyboard visibility actually changed
+      bool keyboardIsNowVisible = myFocusNode.hasFocus;
+      if (_isKeyboardVisible != keyboardIsNowVisible) {
+        setState(() {
+          _isKeyboardVisible = keyboardIsNowVisible;
         });
+
+        // If keyboard just appeared, scroll down
+        if (keyboardIsNowVisible) {
+          // Wait for keyboard to fully appear
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) scrollDown();
+          });
+        }
       }
     });
 
@@ -65,19 +75,31 @@ class _ChatPageState extends State<ChatPage> {
 
   // Initialize chat function
   void initializeChat() async {
-    // Initialize encryption service
-    await _chatService.initializeEncryption();
+    try {
+      // Initialize encryption service
+      await _chatService.initializeEncryption();
 
-    if (mounted) {
-      // Check if widget is still mounted
-      setState(() {
-        _isInitialized = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
 
-      // Scroll to bottom
-      Future.delayed(const Duration(milliseconds: 300), () {
-        scrollDown();
-      });
+        // Scroll to bottom
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) scrollDown();
+        });
+      }
+    } catch (e) {
+      _logger.severe("Failed to initialize chat: $e");
+      // I'll show an error if the app can't initialize
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error setting up chat: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -105,11 +127,16 @@ class _ChatPageState extends State<ChatPage> {
   void sendMessage() async {
     // Check if message is not empty
     if (_messageController.text.isNotEmpty) {
-      // Get message text
+      // Get message text and save it before clearing the field
       String message = _messageController.text;
 
       // Clear input field
       _messageController.clear();
+
+      // Update hasText state after clearing
+      setState(() {
+        _hasText = false;
+      });
 
       try {
         // Send encrypted message
@@ -119,14 +146,15 @@ class _ChatPageState extends State<ChatPage> {
         );
 
         // Scroll down after sending
-        Future.delayed(const Duration(milliseconds: 100), () {
-          scrollDown();
-        });
+        if (mounted) {
+          Future.delayed(const Duration(milliseconds: 100), () {
+            scrollDown();
+          });
+        }
       } catch (e) {
         // Show error if sending fails - with mounted check
         _logger.warning("Failed to send message: $e");
         if (mounted) {
-          // Added to fix the BuildContext async gap issue
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text("Error sending message: $e"),
@@ -270,10 +298,19 @@ class _ChatPageState extends State<ChatPage> {
           _lastMessageCount = currentCount;
         }
 
-        // Scroll down when new messages arrive
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          scrollDown();
-        });
+        // Scroll down when new messages arrive, but only if we're already near the bottom
+        // This stops the list jumping around while reading old messages
+        if (_scrollController.hasClients) {
+          bool isNearBottom = _scrollController.position.maxScrollExtent -
+                  _scrollController.position.pixels <
+              150;
+
+          if (isNearBottom) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              scrollDown();
+            });
+          }
+        }
 
         // Show message if no messages
         if (snapshot.data!.docs.isEmpty) {
@@ -386,6 +423,16 @@ class _ChatPageState extends State<ChatPage> {
                 child: TextField(
                   controller: _messageController,
                   focusNode: myFocusNode,
+                  // Only update hasText when text actually changes, not on every rebuild
+                  onChanged: (text) {
+                    // Only call setState if the value actually changed
+                    if ((_hasText && text.isEmpty) ||
+                        (!_hasText && text.isNotEmpty)) {
+                      setState(() {
+                        _hasText = text.isNotEmpty;
+                      });
+                    }
+                  },
                   decoration: const InputDecoration(
                     hintText: "Type a message",
                     border: InputBorder.none,
@@ -395,14 +442,14 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
           const SizedBox(width: 8),
-          // Send button with enabled/disabled state based on _hasText
+          // Send button - don't rebuild this on every character, it's wasteful
           Container(
             decoration: BoxDecoration(
               color: _hasText ? const Color(0xFF1E88E5) : Colors.grey[300],
               borderRadius: BorderRadius.circular(24),
             ),
             child: IconButton(
-              onPressed: _hasText ? sendMessage : null, // Now using _hasText
+              onPressed: _hasText ? sendMessage : null,
               icon: const Icon(
                 Icons.send,
                 color: Colors.white,

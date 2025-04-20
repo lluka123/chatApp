@@ -23,19 +23,24 @@ class ChatBubble extends StatelessWidget {
       ),
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
-        crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isCurrentUser 
+              color: isCurrentUser
                   ? Theme.of(context).colorScheme.primary
                   : Colors.grey[100],
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(16),
                 topRight: const Radius.circular(16),
-                bottomLeft: isCurrentUser ? const Radius.circular(16) : const Radius.circular(4),
-                bottomRight: isCurrentUser ? const Radius.circular(4) : const Radius.circular(16),
+                bottomLeft: isCurrentUser
+                    ? const Radius.circular(16)
+                    : const Radius.circular(4),
+                bottomRight: isCurrentUser
+                    ? const Radius.circular(4)
+                    : const Radius.circular(16),
               ),
               boxShadow: [
                 BoxShadow(
