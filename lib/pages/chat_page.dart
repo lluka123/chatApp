@@ -29,7 +29,7 @@ class _ChatPageState extends State<ChatPage> {
   FocusNode myFocusNode = FocusNode();
   bool _hasText = false;
   bool _isInitialized = false;
-  
+
   // To track the last message count for vibration
   int _lastMessageCount = 0;
 
@@ -55,7 +55,7 @@ class _ChatPageState extends State<ChatPage> {
     // Initialize encryption in background
     _initializeChat();
   }
-  
+
   Future<void> _initializeChat() async {
     await _chatService.initializeEncryption();
     if (mounted) {
@@ -89,13 +89,13 @@ class _ChatPageState extends State<ChatPage> {
       // Save message and clear input
       String messageText = _messageController.text;
       _messageController.clear();
-      
+
       try {
         await _chatService.sendMessage(
           widget.receiverId,
           messageText,
         );
-        
+
         // Scroll down after sending
         Future.delayed(const Duration(milliseconds: 100), () => scrollDown());
       } catch (e) {
@@ -187,7 +187,7 @@ class _ChatPageState extends State<ChatPage> {
         child: CircularProgressIndicator(),
       );
     }
-    
+
     String senderId = _authService.getCurrentUser()!.uid;
     List<String> ids = [senderId, widget.receiverId];
     ids.sort();
@@ -211,23 +211,24 @@ class _ChatPageState extends State<ChatPage> {
         // Check for new messages to vibrate
         if (snapshot.data != null && snapshot.data!.docs.isNotEmpty) {
           final currentMessageCount = snapshot.data!.docs.length;
-          
+
           // If we have more messages than before and this isn't the first load
-          if (_lastMessageCount > 0 && currentMessageCount > _lastMessageCount) {
+          if (_lastMessageCount > 0 &&
+              currentMessageCount > _lastMessageCount) {
             final latestMessage = snapshot.data!.docs.last;
-            
+
             // Only vibrate if the message is from the other person
             if (latestMessage['senderId'] != senderId) {
               // Vibrate phone - use a stronger vibration pattern
               HapticFeedback.heavyImpact();
-              
+
               // For older devices that might not support haptic feedback well
               Future.delayed(const Duration(milliseconds: 100), () {
                 HapticFeedback.vibrate();
               });
             }
           }
-          
+
           // Update the message count
           _lastMessageCount = currentMessageCount;
         }
@@ -246,16 +247,17 @@ class _ChatPageState extends State<ChatPage> {
           padding: const EdgeInsets.all(16),
           children: snapshot.data!.docs.map((doc) {
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-            
+
             return FutureBuilder<String>(
               future: _chatService.decryptMessageFromDoc(data, chatRoomID),
               builder: (context, decryptSnapshot) {
-                if (decryptSnapshot.connectionState == ConnectionState.waiting) {
+                if (decryptSnapshot.connectionState ==
+                    ConnectionState.waiting) {
                   return const SizedBox.shrink();
                 }
-                
+
                 bool isCurrentUser = data['senderId'] == senderId;
-                
+
                 return _buildMessageItem(
                   decryptSnapshot.data ?? "[Error decrypting]",
                   isCurrentUser,
@@ -269,15 +271,18 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _buildMessageItem(String message, bool isCurrentUser, Timestamp timestamp) {
+  Widget _buildMessageItem(
+      String message, bool isCurrentUser, Timestamp timestamp) {
     // Format time
     DateTime messageTime = timestamp.toDate();
-    String formattedTime = "${messageTime.hour}:${messageTime.minute.toString().padLeft(2, '0')}";
+    String formattedTime =
+        "${messageTime.hour}:${messageTime.minute.toString().padLeft(2, '0')}";
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
-        crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Container(
             constraints: BoxConstraints(

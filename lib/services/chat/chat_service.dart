@@ -6,90 +6,114 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class ChatService extends ChangeNotifier {
-  // Get instance of firestore
+  // Firebase stuff
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Create our encryption service
   final EncryptionService _encryptionService = EncryptionService();
 
-  // Initialize encryption method
+  // This is just here because I need it in other files
   Future<void> initializeEncryption() async {
-    // This is a placeholder method to satisfy the calls in other files
-    // The actual encryption is handled by the EncryptionService
+    // Nothing to do here, but I need this function
+    print("Initializing encryption...");
   }
 
-  // Get user stream
+  // Get all users from Firebase
   Stream<List<Map<String, dynamic>>> getUsersStream() {
     return _firestore.collection("users").snapshots().map((snapshot) {
+      // Convert each document to a Map
       return snapshot.docs.map((doc) {
         return doc.data();
       }).toList();
     });
   }
 
-  // Get all users except blocked users
+  // Get all users except ones I blocked
   Stream<List<Map<String, dynamic>>> getUsersStreamExceptBlocked() {
+    // Get current user
     final currentUser = _auth.currentUser;
 
+    // First get blocked users, then filter the main user list
     return _firestore
         .collection("users")
         .doc(currentUser!.uid)
         .collection("blockedUsers")
         .snapshots()
         .asyncMap((snapshot) async {
-          final blockedUserIds = snapshot.docs.map((doc) => doc.id).toList();
+      // Get IDs of blocked users
+      List<String> blockedIds = [];
+      for (var doc in snapshot.docs) {
+        blockedIds.add(doc.id);
+      }
 
-          final usersSnapshot = await _firestore.collection("users").get();
+      // Get all users
+      final usersSnapshot = await _firestore.collection("users").get();
 
-          return usersSnapshot.docs
-              .where(
-                (doc) =>
-                    doc.data()['email'] != currentUser.email &&
-                    !blockedUserIds.contains(doc.id),
-              )
-              .map((doc) => doc.data())
-              .toList();
-        });
+      // Filter out blocked users and myself
+      List<Map<String, dynamic>> filteredUsers = [];
+      for (var doc in usersSnapshot.docs) {
+        if (doc.data()['email'] != currentUser.email &&
+            !blockedIds.contains(doc.id)) {
+          filteredUsers.add(doc.data());
+        }
+      }
+
+      return filteredUsers;
+    });
   }
 
-  // Send message with encryption
+  // Send a message with encryption
   Future<void> sendMessage(String receiverId, String message) async {
+    // Get current user info
     final String currentUserId = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email!;
     final Timestamp timestamp = Timestamp.now();
 
-    // Create chat room ID
+    // Create chat room ID by combining user IDs alphabetically
     List<String> ids = [currentUserId, receiverId];
-    ids.sort();
+    ids.sort(); // Sort alphabetically
     String chatRoomID = ids.join("_");
-    
-    // Get or create conversation key
-    String conversationKey = await _encryptionService.getOrCreateConversationKey(chatRoomID);
-    
-    // Encrypt message
-    Map<String, String> encryptedData = _encryptionService.encryptMessage(message, conversationKey);
 
-    Message newMessage = Message(
-      senderId: currentUserId,
-      senderEmail: currentUserEmail,
-      receiverId: receiverId,
-      message: encryptedData['encryptedText']!, // Store encrypted message
-      iv: encryptedData['iv']!, // Store IV
-      timestamp: timestamp,
-    );
+    try {
+      // Get or create encryption key
+      String key = await _encryptionService.getOrCreateChatKey(chatRoomID);
 
-    await _firestore
-        .collection("chat_rooms")
-        .doc(chatRoomID)
-        .collection("messages")
-        .add(newMessage.toMap());
+      // Encrypt the message
+      Map<String, String> encrypted =
+          _encryptionService.encryptMessage(message, key);
+
+      // Create a message object
+      Message newMessage = Message(
+        senderId: currentUserId,
+        senderEmail: currentUserEmail,
+        receiverId: receiverId,
+        message: encrypted['encryptedText']!,
+        iv: encrypted['iv']!,
+        timestamp: timestamp,
+      );
+
+      // Save to Firebase
+      await _firestore
+          .collection("chat_rooms")
+          .doc(chatRoomID)
+          .collection("messages")
+          .add(newMessage.toMap());
+
+      print("Message sent and encrypted!");
+    } catch (e) {
+      print("Error sending message: $e");
+    }
   }
 
-  // Get messages
+  // Get messages between two users
   Stream<QuerySnapshot> getMessages(String userId, otherUserId) {
+    // Create chat room ID
     List<String> ids = [userId, otherUserId];
     ids.sort();
     String chatRoomID = ids.join("_");
 
+    // Get messages from Firebase
     return _firestore
         .collection("chat_rooms")
         .doc(chatRoomID)
@@ -97,78 +121,102 @@ class ChatService extends ChangeNotifier {
         .orderBy("timestamp", descending: false)
         .snapshots();
   }
-  
-  // Decrypt a message from document data
-  Future<String> decryptMessageFromDoc(Map<String, dynamic> messageData, String chatRoomId) async {
+
+  // Decrypt a message from document
+  Future<String> decryptMessageFromDoc(
+      Map<String, dynamic> messageData, String chatRoomId) async {
     try {
-      // Get conversation key
-      String conversationKey = await _encryptionService.getOrCreateConversationKey(chatRoomId);
-      
-      String encryptedMessage = messageData['message'] ?? '';
+      // Get key
+      String key = await _encryptionService.getOrCreateChatKey(chatRoomId);
+
+      // Get message and IV
+      String encrypted = messageData['message'] ?? '';
       String iv = messageData['iv'] ?? '';
-      
-      // Decrypt message
-      return _encryptionService.decryptMessage(encryptedMessage, iv, conversationKey);
+
+      // Decrypt
+      return _encryptionService.decryptMessage(encrypted, iv, key);
     } catch (e) {
-      // Use logger instead of print in production
-      debugPrint("Error decrypting message: $e");
+      print("Error decrypting: $e");
       return "[Decryption error]";
     }
   }
-  
-  // Decrypt a message (legacy method - for backward compatibility)
-  Future<String> decryptMessage(String encryptedMessage, String chatRoomId) async {
+
+  // Old decrypt function (keeping for compatibility)
+  Future<String> decryptMessage(
+      String encryptedMessage, String chatRoomId) async {
     try {
-      // Get conversation key
-      String conversationKey = await _encryptionService.getOrCreateConversationKey(chatRoomId);
-      
-      // For legacy messages without IV, we'll try to decrypt without it
-      return _encryptionService.decryptMessage(encryptedMessage, '', conversationKey);
+      // Get key
+      String key = await _encryptionService.getOrCreateChatKey(chatRoomId);
+
+      // Decrypt (without IV for old messages)
+      return _encryptionService.decryptMessage(encryptedMessage, '', key);
     } catch (e) {
-      // Use logger instead of print in production
-      debugPrint("Error decrypting message: $e");
+      print("Error with old decryption: $e");
       return "[Encrypted message]";
     }
   }
 
-  // Report User
+  // Report user function
   Future<void> reportUser(String messageId, String userId) async {
     final currentUser = _auth.currentUser;
-    final report = {
+
+    // Create report
+    Map<String, dynamic> report = {
       'reportedBy': currentUser!.uid,
       'messageId': messageId,
       'messageOwnerId': userId,
       'timestamp': FieldValue.serverTimestamp(),
     };
 
-    await _firestore.collection('reports').add(report);
+    // Save report to Firebase
+    try {
+      await _firestore.collection('reports').add(report);
+      print("User reported successfully");
+    } catch (e) {
+      print("Error reporting user: $e");
+    }
   }
 
-  // Block User
+  // Block a user
   Future<void> blockUser(String userId) async {
     final currentUser = _auth.currentUser;
-    await _firestore
-        .collection("users")
-        .doc(currentUser!.uid)
-        .collection("blockedUsers")
-        .doc(userId)
-        .set({});
 
-    notifyListeners();
+    try {
+      // Add user to blocked collection
+      await _firestore
+          .collection("users")
+          .doc(currentUser!.uid)
+          .collection("blockedUsers")
+          .doc(userId)
+          .set({});
+
+      print("User blocked successfully");
+      notifyListeners();
+    } catch (e) {
+      print("Error blocking user: $e");
+    }
   }
 
-  // Unblock User
+  // Unblock a user
   Future<void> unblockUser(String blockedUserId) async {
     final currentUser = _auth.currentUser;
-    await _firestore
-        .collection("users")
-        .doc(currentUser!.uid)
-        .collection("blockedUsers")
-        .doc(blockedUserId)
-        .delete();
+
+    try {
+      // Remove user from blocked collection
+      await _firestore
+          .collection("users")
+          .doc(currentUser!.uid)
+          .collection("blockedUsers")
+          .doc(blockedUserId)
+          .delete();
+
+      print("User unblocked successfully");
+    } catch (e) {
+      print("Error unblocking user: $e");
+    }
   }
 
-  // Get Blocked User stream
+  // Get list of blocked users
   Stream<List<Map<String, dynamic>>> getBlockedUsersStream(String userId) {
     return _firestore
         .collection("users")
@@ -176,17 +224,21 @@ class ChatService extends ChangeNotifier {
         .collection("blockedUsers")
         .snapshots()
         .asyncMap((snapshot) async {
-          final blockedUserIds = snapshot.docs.map((doc) => doc.id).toList();
+      // Get blocked user IDs
+      List<String> blockedIds = [];
+      for (var doc in snapshot.docs) {
+        blockedIds.add(doc.id);
+      }
 
-          final userDocs = await Future.wait(
-            blockedUserIds.map(
-              (id) => _firestore.collection("users").doc(id).get(),
-            ),
-          );
+      // Get user details for each blocked ID
+      List<Map<String, dynamic>> blockedUsers = [];
+      for (var id in blockedIds) {
+        DocumentSnapshot userDoc =
+            await _firestore.collection("users").doc(id).get();
+        blockedUsers.add(userDoc.data() as Map<String, dynamic>);
+      }
 
-          return userDocs
-              .map((doc) => doc.data() as Map<String, dynamic>)
-              .toList();
-        });
+      return blockedUsers;
+    });
   }
 }

@@ -1,112 +1,164 @@
+// lib/services/encryption/encryption_service.dart
 import 'dart:convert';
 import 'dart:math';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:logging/logging.dart';
+import 'package:flutter/material.dart';
 
 class EncryptionService {
+  // Firebase stuff
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final Logger _logger = Logger('EncryptionService');
-  
-  // Generate a secure random key
-  String generateSecureKey() {
+
+  // Make a random key for encryption
+  String makeRandomKey() {
+    // Use Random.secure because my teacher said it's more secure
     final random = Random.secure();
-    final keyBytes = List<int>.generate(32, (_) => random.nextInt(256));
-    return base64Encode(keyBytes);
+
+    // Make 32 random numbers and convert to a string
+    List<int> numbers = [];
+    for (int i = 0; i < 32; i++) {
+      numbers.add(random.nextInt(256));
+    }
+
+    // Turn it into base64 because that's what the encrypt package needs
+    String key = base64Encode(numbers);
+    print("Created new encryption key!");
+    return key;
   }
-  
-  // Store encryption key in Firestore
-  Future<void> storeEncryptionKey(String chatRoomId, String receiverId, String encryptedKey) async {
+
+  // Save the key to Firebase so we can use it later
+  Future<void> saveKeyToFirebase(
+      String chatRoomId, String receiverId, String key) async {
+    // Check if user is logged in
     final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
-    
-    await _firestore
-        .collection('chat_rooms')
-        .doc(chatRoomId)
-        .collection('keys')
-        .doc(receiverId)
-        .set({
-      'encryptedKey': encryptedKey,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    if (currentUser == null) {
+      print("Error: Not logged in!");
+      return;
+    }
+
+    // Save the key
+    try {
+      await _firestore
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('keys')
+          .doc(receiverId)
+          .set({
+        'encryptedKey': key,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      print("Key saved successfully!");
+    } catch (e) {
+      print("Error saving key: $e");
+    }
   }
-  
+
   // Encrypt a message
   Map<String, String> encryptMessage(String message, String key) {
     try {
+      // Convert the key to the format needed by the package
       final encryptKey = encrypt.Key.fromBase64(key);
-      // Generate a random IV for each message
+
+      // Create a random IV (my teacher explained this is important for security)
       final iv = encrypt.IV.fromSecureRandom(16);
+
+      // Set up the encrypter
       final encrypter = encrypt.Encrypter(encrypt.AES(encryptKey));
-      
+
+      // Do the encryption
       final encrypted = encrypter.encrypt(message, iv: iv);
-      
-      // Return both the encrypted message and the IV
+
+      print("Message encrypted successfully!");
+
+      // Return the encrypted message and IV
       return {
         'encryptedText': encrypted.base64,
         'iv': iv.base64,
       };
     } catch (e) {
-      _logger.warning("Encryption error: $e");
+      // If something goes wrong, just return the original message
+      print("Encryption failed: $e");
       return {
         'encryptedText': message,
         'iv': '',
-      }; // Return original message if encryption fails
+      };
     }
   }
-  
+
   // Decrypt a message
   String decryptMessage(String encryptedMessage, String ivString, String key) {
     try {
+      // If there's no IV, it's probably not encrypted
       if (ivString.isEmpty) {
-        return encryptedMessage; // If no IV, return the message as is
+        return encryptedMessage;
       }
-      
+
+      // Set up the decryption
       final encryptKey = encrypt.Key.fromBase64(key);
       final iv = encrypt.IV.fromBase64(ivString);
       final encrypter = encrypt.Encrypter(encrypt.AES(encryptKey));
-      
-      return encrypter.decrypt64(encryptedMessage, iv: iv);
+
+      // Decrypt the message
+      String decrypted = encrypter.decrypt64(encryptedMessage, iv: iv);
+      print("Message decrypted successfully!");
+      return decrypted;
     } catch (e) {
-      _logger.warning("Decryption error: $e");
-      return "[Encrypted message]"; // Return placeholder if decryption fails
+      // If decryption fails, show an error message
+      print("Decryption failed: $e");
+      return "[Could not decrypt message]";
     }
   }
-  
-  // Generate a conversation key for a chat room
-  Future<String> getOrCreateConversationKey(String chatRoomId) async {
+
+  // Get or create a key for a chat room
+  Future<String> getOrCreateChatKey(String chatRoomId) async {
+    // Check if user is logged in
     final currentUser = _auth.currentUser;
-    if (currentUser == null) throw Exception("User not authenticated");
-    
-    // Check if key exists
-    final keyDoc = await _firestore
-        .collection('chat_rooms')
-        .doc(chatRoomId)
-        .collection('keys')
-        .doc('shared_key')
-        .get();
-    
-    if (keyDoc.exists && keyDoc.data() != null && keyDoc.data()!.containsKey('key')) {
-      return keyDoc.data()!['key'];
+    if (currentUser == null) {
+      print("Error: Not logged in!");
+      throw Exception("Not logged in");
     }
-    
-    // Create new key
-    final newKey = generateSecureKey();
-    
-    // Store key
-    await _firestore
-        .collection('chat_rooms')
-        .doc(chatRoomId)
-        .collection('keys')
-        .doc('shared_key')
-        .set({
-      'key': newKey,
-      'createdBy': currentUser.uid,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-    
-    return newKey;
+
+    // Try to get existing key
+    try {
+      final keyDoc = await _firestore
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('keys')
+          .doc('shared_key')
+          .get();
+
+      // If key exists, return it
+      if (keyDoc.exists &&
+          keyDoc.data() != null &&
+          keyDoc.data()!['key'] != null) {
+        print("Found existing key!");
+        return keyDoc.data()!['key'];
+      }
+
+      // Otherwise create a new key
+      print("No key found, creating new one...");
+      final newKey = makeRandomKey();
+
+      // Save the new key
+      await _firestore
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('keys')
+          .doc('shared_key')
+          .set({
+        'key': newKey,
+        'createdBy': currentUser.uid,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      print("New key created and saved!");
+      return newKey;
+    } catch (e) {
+      // Show error and rethrow
+      print("Error with chat key: $e");
+      throw Exception("Failed to get or create key: $e");
+    }
   }
 }
