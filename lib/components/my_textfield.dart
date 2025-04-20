@@ -57,9 +57,13 @@ class MyTextField extends StatelessWidget {
             filled: true,
             hintText: hintText,
             hintStyle: TextStyle(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7 * 255.0),
+              color: Theme.of(context)
+                  .colorScheme
+                  .primary
+                  .withValues(alpha: 0.7 * 255.0),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           ),
         ),
       ),

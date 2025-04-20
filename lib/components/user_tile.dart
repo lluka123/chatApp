@@ -71,7 +71,7 @@ class UserTile extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            "Tap to start secure chat",
+                            "Tapni za začetek varnega klepeta",
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 13,

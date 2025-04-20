@@ -74,10 +74,7 @@ class _MyButtonState extends State<MyButton>
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                 blurRadius: 10,
                 offset: const Offset(0, 5),
                 spreadRadius: -2,

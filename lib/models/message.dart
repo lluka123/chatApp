@@ -15,7 +15,7 @@ class Message {
     required this.message,
     required this.iv, // Dodano
     required this.timestamp,
-  }); 
+  });
 
   Map<String, dynamic> toMap() {
     return {

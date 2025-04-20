@@ -12,18 +12,19 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // Text controllers
+  // Kontrolerji besedila
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   bool _isLoading = false;
 
-  // Register Method
+  // Metoda za registracijo
   void register() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     final authService = AuthService();
 
     if (_passwordController.text == _confirmPasswordController.text) {
@@ -37,12 +38,12 @@ class _RegisterPageState extends State<RegisterPage> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text("Registration Failed"),
+            title: const Text("Registracija ni uspela"),
             content: Text(e.toString()),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("OK"),
+                child: const Text("V redu"),
               ),
             ],
           ),
@@ -58,16 +59,16 @@ class _RegisterPageState extends State<RegisterPage> {
       setState(() {
         _isLoading = false;
       });
-      
+
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text("Error"),
-          content: const Text("Passwords don't match!"),
+          title: const Text("Napaka"),
+          content: const Text("Gesli se ne ujemata!"),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("OK"),
+              child: const Text("V redu"),
             ),
           ],
         ),
@@ -86,15 +87,15 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo
+                // Logotip
                 Image.asset(
                   'assets/images/logo.png',
                   height: 100,
                 ),
-                
+
                 const SizedBox(height: 20),
-                
-                // App name
+
+                // Ime aplikacije
                 const Text(
                   "Cryptiq",
                   style: TextStyle(
@@ -103,77 +104,80 @@ class _RegisterPageState extends State<RegisterPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 const Text(
-                  "Create Account",
+                  "Ustvari račun",
                   style: TextStyle(
                     color: Color(0xFF1E88E5),
                     fontSize: 16,
                   ),
                 ),
-                
+
                 const SizedBox(height: 40),
-                
-                // Email field
+
+                // Polje za e-pošto
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    hintText: "Email",
+                    hintText: "E-pošta",
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF1E88E5), width: 2),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF1E88E5), width: 2),
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
-                // Password field
+
+                // Polje za geslo
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
-                    hintText: "Password",
+                    hintText: "Geslo",
                     prefixIcon: const Icon(Icons.lock),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF1E88E5), width: 2),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF1E88E5), width: 2),
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
-                // Confirm Password field
+
+                // Polje za potrditev gesla
                 TextField(
                   controller: _confirmPasswordController,
                   obscureText: true,
                   decoration: InputDecoration(
-                    hintText: "Confirm Password",
+                    hintText: "Potrdi geslo",
                     prefixIcon: const Icon(Icons.lock),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF1E88E5), width: 2),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF1E88E5), width: 2),
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 30),
-                
-                // Register button
+
+                // Gumb za registracijo
                 SizedBox(
                   width: double.infinity,
                   height: 55,
@@ -188,37 +192,37 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       elevation: 2,
                     ),
-                    child: _isLoading 
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            "Registracija",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        )
-                      : const Text(
-                          "Register",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 30),
-                
-                // Login option
+
+                // Možnost za prijavo
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Already have an account?"),
+                    const Text("Že imate račun?"),
                     TextButton(
                       onPressed: () => widget.onTap?.call(),
                       child: const Text(
-                        "Login now",
+                        "Prijavite se zdaj",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF1E88E5),

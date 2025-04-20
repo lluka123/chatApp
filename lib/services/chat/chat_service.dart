@@ -7,53 +7,53 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
 class ChatService extends ChangeNotifier {
-  // Firebase stuff
+  // Firebase elementi
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Create our encryption service
+  // Ustvari naš šifrirni servis
   final EncryptionService _encryptionService = EncryptionService();
-  // Create a logger
+  // Ustvari logger
   final Logger _logger = Logger('ChatService');
 
-  // This is just here because I need it in other files
+  // To je tukaj samo zato, ker to potrebujem v drugih datotekah
   Future<void> initializeEncryption() async {
-    // Nothing to do here, but I need this function
-    _logger.info("Initializing encryption...");
+    // Tukaj ni ničesar za narediti, ampak potrebujem to funkcijo
+    _logger.info("Inicializacija šifriranja...");
   }
 
-  // Get all users from Firebase
+  // Pridobi vse uporabnike iz Firebase
   Stream<List<Map<String, dynamic>>> getUsersStream() {
     return _firestore.collection("users").snapshots().map((snapshot) {
-      // Convert each document to a Map
+      // Pretvori vsak dokument v Map
       return snapshot.docs.map((doc) {
         return doc.data();
       }).toList();
     });
   }
 
-  // Get all users except ones I blocked
+  // Pridobi vse uporabnike razen tistih, ki sem jih blokiral
   Stream<List<Map<String, dynamic>>> getUsersStreamExceptBlocked() {
-    // Get current user
+    // Pridobi trenutnega uporabnika
     final currentUser = _auth.currentUser;
 
-    // First get blocked users, then filter the main user list
+    // Najprej pridobi blokirane uporabnike, nato filtriraj glavni seznam uporabnikov
     return _firestore
         .collection("users")
         .doc(currentUser!.uid)
         .collection("blockedUsers")
         .snapshots()
         .asyncMap((snapshot) async {
-      // Get IDs of blocked users
+      // Pridobi ID-je blokiranih uporabnikov
       List<String> blockedIds = [];
       for (var doc in snapshot.docs) {
         blockedIds.add(doc.id);
       }
 
-      // Get all users
+      // Pridobi vse uporabnike
       final usersSnapshot = await _firestore.collection("users").get();
 
-      // Filter out blocked users and myself
+      // Filtriraj blokirane uporabnike in sebe
       List<Map<String, dynamic>> filteredUsers = [];
       for (var doc in usersSnapshot.docs) {
         if (doc.data()['email'] != currentUser.email &&
@@ -66,27 +66,27 @@ class ChatService extends ChangeNotifier {
     });
   }
 
-  // Send a message with encryption
+  // Pošlji sporočilo s šifriranjem
   Future<void> sendMessage(String receiverId, String message) async {
-    // Get current user info
+    // Pridobi informacije o trenutnem uporabniku
     final String currentUserId = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email!;
     final Timestamp timestamp = Timestamp.now();
 
-    // Create chat room ID by combining user IDs alphabetically
+    // Ustvari ID klepetalnice s kombinacijo ID-jev uporabnikov po abecedi
     List<String> ids = [currentUserId, receiverId];
-    ids.sort(); // Sort alphabetically
+    ids.sort(); // Razvrsti po abecedi
     String chatRoomID = ids.join("_");
 
     try {
-      // Get or create encryption key
+      // Pridobi ali ustvari šifrirni ključ
       String key = await _encryptionService.getOrCreateChatKey(chatRoomID);
 
-      // Encrypt the message
+      // Šifriraj sporočilo
       Map<String, String> encrypted =
           _encryptionService.encryptMessage(message, key);
 
-      // Create a message object
+      // Ustvari objekt sporočila
       Message newMessage = Message(
         senderId: currentUserId,
         senderEmail: currentUserEmail,
@@ -96,27 +96,27 @@ class ChatService extends ChangeNotifier {
         timestamp: timestamp,
       );
 
-      // Save to Firebase
+      // Shrani v Firebase
       await _firestore
           .collection("chat_rooms")
           .doc(chatRoomID)
           .collection("messages")
           .add(newMessage.toMap());
 
-      _logger.info("Message sent and encrypted!");
+      _logger.info("Sporočilo poslano in šifrirano!");
     } catch (e) {
-      _logger.warning("Error sending message: $e");
+      _logger.warning("Napaka pri pošiljanju sporočila: $e");
     }
   }
 
-  // Get messages between two users
+  // Pridobi sporočila med dvema uporabnikoma
   Stream<QuerySnapshot> getMessages(String userId, otherUserId) {
-    // Create chat room ID
+    // Ustvari ID klepetalnice
     List<String> ids = [userId, otherUserId];
     ids.sort();
     String chatRoomID = ids.join("_");
 
-    // Get messages from Firebase
+    // Pridobi sporočila iz Firebase
     return _firestore
         .collection("chat_rooms")
         .doc(chatRoomID)
@@ -125,45 +125,45 @@ class ChatService extends ChangeNotifier {
         .snapshots();
   }
 
-  // Decrypt a message from document
+  // Dešifriraj sporočilo iz dokumenta
   Future<String> decryptMessageFromDoc(
       Map<String, dynamic> messageData, String chatRoomId) async {
     try {
-      // Get key
+      // Pridobi ključ
       String key = await _encryptionService.getOrCreateChatKey(chatRoomId);
 
-      // Get message and IV
+      // Pridobi sporočilo in IV
       String encrypted = messageData['message'] ?? '';
       String iv = messageData['iv'] ?? '';
 
-      // Decrypt
+      // Dešifriraj
       return _encryptionService.decryptMessage(encrypted, iv, key);
     } catch (e) {
-      _logger.warning("Error decrypting: $e");
-      return "[Decryption error]";
+      _logger.warning("Napaka pri dešifriranju: $e");
+      return "[Napaka pri dešifriranju]";
     }
   }
 
-  // Old decrypt function (keeping for compatibility)
+  // Stara funkcija za dešifriranje (ohranjena zaradi združljivosti)
   Future<String> decryptMessage(
       String encryptedMessage, String chatRoomId) async {
     try {
-      // Get key
+      // Pridobi ključ
       String key = await _encryptionService.getOrCreateChatKey(chatRoomId);
 
-      // Decrypt (without IV for old messages)
+      // Dešifriraj (brez IV za stara sporočila)
       return _encryptionService.decryptMessage(encryptedMessage, '', key);
     } catch (e) {
-      _logger.warning("Error with old decryption: $e");
-      return "[Encrypted message]";
+      _logger.warning("Napaka pri starem dešifriranju: $e");
+      return "[Šifrirano sporočilo]";
     }
   }
 
-  // Report user function
+  // Funkcija za prijavo uporabnika
   Future<void> reportUser(String messageId, String userId) async {
     final currentUser = _auth.currentUser;
 
-    // Create report
+    // Ustvari prijavo
     Map<String, dynamic> report = {
       'reportedBy': currentUser!.uid,
       'messageId': messageId,
@@ -171,21 +171,21 @@ class ChatService extends ChangeNotifier {
       'timestamp': FieldValue.serverTimestamp(),
     };
 
-    // Save report to Firebase
+    // Shrani prijavo v Firebase
     try {
       await _firestore.collection('reports').add(report);
-      _logger.info("User reported successfully");
+      _logger.info("Uporabnik uspešno prijavljen");
     } catch (e) {
-      _logger.warning("Error reporting user: $e");
+      _logger.warning("Napaka pri prijavi uporabnika: $e");
     }
   }
 
-  // Block a user
+  // Blokiraj uporabnika
   Future<void> blockUser(String userId) async {
     final currentUser = _auth.currentUser;
 
     try {
-      // Add user to blocked collection
+      // Dodaj uporabnika v zbirko blokiranih
       await _firestore
           .collection("users")
           .doc(currentUser!.uid)
@@ -193,19 +193,19 @@ class ChatService extends ChangeNotifier {
           .doc(userId)
           .set({});
 
-      _logger.info("User blocked successfully");
+      _logger.info("Uporabnik uspešno blokiran");
       notifyListeners();
     } catch (e) {
-      _logger.warning("Error blocking user: $e");
+      _logger.warning("Napaka pri blokiranju uporabnika: $e");
     }
   }
 
-  // Unblock a user
+  // Odblokiraj uporabnika
   Future<void> unblockUser(String blockedUserId) async {
     final currentUser = _auth.currentUser;
 
     try {
-      // Remove user from blocked collection
+      // Odstrani uporabnika iz zbirke blokiranih
       await _firestore
           .collection("users")
           .doc(currentUser!.uid)
@@ -213,13 +213,13 @@ class ChatService extends ChangeNotifier {
           .doc(blockedUserId)
           .delete();
 
-      _logger.info("User unblocked successfully");
+      _logger.info("Uporabnik uspešno odblokiran");
     } catch (e) {
-      _logger.warning("Error unblocking user: $e");
+      _logger.warning("Napaka pri odblokiranju uporabnika: $e");
     }
   }
 
-  // Get list of blocked users
+  // Pridobi seznam blokiranih uporabnikov
   Stream<List<Map<String, dynamic>>> getBlockedUsersStream(String userId) {
     return _firestore
         .collection("users")
@@ -227,13 +227,13 @@ class ChatService extends ChangeNotifier {
         .collection("blockedUsers")
         .snapshots()
         .asyncMap((snapshot) async {
-      // Get blocked user IDs
+      // Pridobi ID-je blokiranih uporabnikov
       List<String> blockedIds = [];
       for (var doc in snapshot.docs) {
         blockedIds.add(doc.id);
       }
 
-      // Get user details for each blocked ID
+      // Pridobi podrobnosti uporabnika za vsak blokiran ID
       List<Map<String, dynamic>> blockedUsers = [];
       for (var id in blockedIds) {
         DocumentSnapshot userDoc =

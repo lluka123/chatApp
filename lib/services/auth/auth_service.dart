@@ -6,12 +6,12 @@ class AuthService extends ChangeNotifier {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get current user
+  // Pridobi trenutnega uporabnika
   User? getCurrentUser() {
     return _firebaseAuth.currentUser;
   }
 
-  // Sign in
+  // Prijava
   Future<UserCredential> signInWithEmailPassword(
     String email,
     String password,
@@ -22,14 +22,14 @@ class AuthService extends ChangeNotifier {
         email: email,
         password: password,
       );
-      
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.code);
     }
   }
 
-  // Sign up
+  // Registracija
   Future<UserCredential> signUpWithEmailPassword(
     String email,
     String password,
@@ -41,7 +41,7 @@ class AuthService extends ChangeNotifier {
         password: password,
       );
 
-      // Create a new document for the user in the users collection
+      // Ustvari nov dokument za uporabnika v zbirki uporabnikov
       _firestore.collection('users').doc(userCredential.user!.uid).set({
         'uid': userCredential.user!.uid,
         'email': email,
@@ -53,7 +53,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // Sign out
+  // Odjava
   Future<void> signOut() async {
     return await _firebaseAuth.signOut();
   }

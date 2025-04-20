@@ -10,10 +10,10 @@ class LoginOrRegister extends StatefulWidget {
 }
 
 class _LoginOrRegisterState extends State<LoginOrRegister> {
-  // Initially, show the login page
+  // Na začetku prikaži stran za prijavo
   bool showLoginPage = true;
 
-  // Toggle to switch between login and register pages
+  // Preklop za menjavo med stranmi za prijavo in registracijo
   void togglePage() {
     setState(() {
       showLoginPage = !showLoginPage;

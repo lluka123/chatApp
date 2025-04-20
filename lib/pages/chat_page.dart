@@ -3,7 +3,6 @@ import "package:chatapp/services/auth/auth_service.dart";
 import "package:chatapp/services/chat/chat_service.dart";
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:flutter/material.dart";
-import "package:flutter/services.dart";
 import "package:logging/logging.dart";
 
 class ChatPage extends StatefulWidget {
@@ -21,47 +20,47 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  // Controllers for input and scrolling
+  // Kontrolerji za vnos in drsenje
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // Services
+  // Servisi
   final ChatService _chatService = ChatService();
   final AuthService _authService = AuthService();
   final Logger _logger = Logger('ChatPage');
 
-  // Focus node for keyboard
+  // Focus node za tipkovnico
   FocusNode myFocusNode = FocusNode();
 
-  // State variables
+  // Spremenljivke stanja
   bool _hasText = false;
   bool _isInitialized = false;
   int _lastMessageCount = 0;
 
-  // Variable to track keyboard status
+  // Spremenljivka za sledenje stanju tipkovnice
   bool _isKeyboardVisible = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Instead of using a listener that calls setState for every keystroke,
-    // we'll update _hasText when sending a message or in onChanged
-    _messageController.text = ""; // Start empty
+    // Namesto uporabe poslušalca, ki kliče setState za vsak pritisk tipke,
+    // bomo posodobili _hasText pri pošiljanju sporočila ali v onChanged
+    _messageController.text = ""; // Začni prazno
     _hasText = false;
 
-    // Handle keyboard showing/hiding better
+    // Bolje upravljaj s prikazom/skrivanjem tipkovnice
     myFocusNode.addListener(() {
-      // Only update state if keyboard visibility actually changed
+      // Posodobi stanje samo, če se je vidnost tipkovnice dejansko spremenila
       bool keyboardIsNowVisible = myFocusNode.hasFocus;
       if (_isKeyboardVisible != keyboardIsNowVisible) {
         setState(() {
           _isKeyboardVisible = keyboardIsNowVisible;
         });
 
-        // If keyboard just appeared, scroll down
+        // Če se je tipkovnica pravkar pojavila, se pomakni navzdol
         if (keyboardIsNowVisible) {
-          // Wait for keyboard to fully appear
+          // Počakaj, da se tipkovnica popolnoma pojavi
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) scrollDown();
           });
@@ -69,14 +68,14 @@ class _ChatPageState extends State<ChatPage> {
       }
     });
 
-    // Initialize encryption
+    // Inicializiraj šifriranje
     initializeChat();
   }
 
-  // Initialize chat function
+  // Funkcija za inicializacijo klepeta
   void initializeChat() async {
     try {
-      // Initialize encryption service
+      // Inicializiraj šifrirni servis
       await _chatService.initializeEncryption();
 
       if (mounted) {
@@ -84,18 +83,18 @@ class _ChatPageState extends State<ChatPage> {
           _isInitialized = true;
         });
 
-        // Scroll to bottom
+        // Pomakni se na dno
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) scrollDown();
         });
       }
     } catch (e) {
-      _logger.severe("Failed to initialize chat: $e");
-      // I'll show an error if the app can't initialize
+      _logger.severe("Inicializacija klepeta ni uspela: $e");
+      // Prikazal bom napako, če aplikacija ne more inicializirati
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error setting up chat: $e"),
+            content: Text("Napaka pri nastavitvi klepeta: $e"),
             backgroundColor: Colors.red,
           ),
         );
@@ -105,14 +104,14 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    // Clean up controllers
+    // Počisti kontrolerje
     myFocusNode.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // Function to scroll to bottom of chat
+  // Funkcija za pomik na dno klepeta
   void scrollDown() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -123,41 +122,41 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  // Send message function
+  // Funkcija za pošiljanje sporočila
   void sendMessage() async {
-    // Check if message is not empty
+    // Preveri, če sporočilo ni prazno
     if (_messageController.text.isNotEmpty) {
-      // Get message text and save it before clearing the field
+      // Pridobi besedilo sporočila in ga shrani pred čiščenjem polja
       String message = _messageController.text;
 
-      // Clear input field
+      // Počisti vnosno polje
       _messageController.clear();
 
-      // Update hasText state after clearing
+      // Posodobi stanje hasText po čiščenju
       setState(() {
         _hasText = false;
       });
 
       try {
-        // Send encrypted message
+        // Pošlji šifrirano sporočilo
         await _chatService.sendMessage(
           widget.receiverId,
           message,
         );
 
-        // Scroll down after sending
+        // Pomakni se navzdol po pošiljanju
         if (mounted) {
           Future.delayed(const Duration(milliseconds: 100), () {
             scrollDown();
           });
         }
       } catch (e) {
-        // Show error if sending fails - with mounted check
-        _logger.warning("Failed to send message: $e");
+        // Prikaži napako, če pošiljanje ne uspe - s preverjanjem mounted
+        _logger.warning("Pošiljanje sporočila ni uspelo: $e");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Error sending message: $e"),
+              content: Text("Napaka pri pošiljanju sporočila: $e"),
               backgroundColor: Colors.red,
             ),
           );
@@ -173,7 +172,7 @@ class _ChatPageState extends State<ChatPage> {
       appBar: AppBar(
         title: Row(
           children: [
-            // User avatar
+            // Avatar uporabnika
             CircleAvatar(
               backgroundColor: const Color(0xFF1E88E5),
               child: Text(
@@ -185,7 +184,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
             const SizedBox(width: 12),
-            // User details
+            // Podrobnosti uporabnika
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +198,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  // Encryption indicator
+                  // Indikator šifriranja
                   Row(
                     children: [
                       Icon(
@@ -234,41 +233,41 @@ class _ChatPageState extends State<ChatPage> {
       ),
       body: Column(
         children: [
-          // Messages list
+          // Seznam sporočil
           Expanded(child: buildMessageList()),
-          // Input field
+          // Vnosno polje
           buildUserInput(),
         ],
       ),
     );
   }
 
-  // Build the message list
+  // Zgradi seznam sporočil
   Widget buildMessageList() {
-    // Show loading indicator while initializing
+    // Prikaži indikator nalaganja med inicializacijo
     if (!_isInitialized) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    // Get current user ID
+    // Pridobi ID trenutnega uporabnika
     String senderId = _authService.getCurrentUser()!.uid;
 
-    // Create chat room ID
+    // Ustvari ID klepetalnice
     List<String> ids = [senderId, widget.receiverId];
     ids.sort();
     String chatRoomID = ids.join("_");
 
-    // Stream builder for messages
+    // Stream builder za sporočila
     return StreamBuilder(
       stream: _chatService.getMessages(senderId, widget.receiverId),
       builder: (context, snapshot) {
-        // Handle loading and error states
+        // Obravnavaj stanja nalaganja in napak
         if (snapshot.hasError) {
-          _logger.warning("Error in message stream: ${snapshot.error}");
+          _logger.warning("Napaka v toku sporočil: ${snapshot.error}");
           return const Center(
-            child: Text("Error loading messages"),
+            child: Text("Napaka pri nalaganju sporočil"),
           );
         }
 
@@ -278,28 +277,26 @@ class _ChatPageState extends State<ChatPage> {
           );
         }
 
-        // Check for new messages to vibrate
+        // Preveri nova sporočila
         if (snapshot.data != null && snapshot.data!.docs.isNotEmpty) {
           int currentCount = snapshot.data!.docs.length;
 
-          // If we have more messages than before
+          // Če imamo več sporočil kot prej
           if (_lastMessageCount > 0 && currentCount > _lastMessageCount) {
             var lastMessage = snapshot.data!.docs.last;
 
-            // Check if message is from other person
+            // Preveri, če je sporočilo od druge osebe
             if (lastMessage['senderId'] != senderId) {
-              // Make phone vibrate
-              HapticFeedback.vibrate();
-              _logger.info("New message received - vibrating");
+              _logger.info("Prejeto novo sporočilo");
             }
           }
 
-          // Update count
+          // Posodobi števec
           _lastMessageCount = currentCount;
         }
 
-        // Scroll down when new messages arrive, but only if we're already near the bottom
-        // This stops the list jumping around while reading old messages
+        // Pomakni se navzdol, ko prispejo nova sporočila, vendar samo če smo že blizu dna
+        // To prepreči skakanje seznama med branjem starih sporočil
         if (_scrollController.hasClients) {
           bool isNearBottom = _scrollController.position.maxScrollExtent -
                   _scrollController.position.pixels <
@@ -312,37 +309,37 @@ class _ChatPageState extends State<ChatPage> {
           }
         }
 
-        // Show message if no messages
+        // Prikaži sporočilo, če ni sporočil
         if (snapshot.data!.docs.isEmpty) {
           return const Center(
-            child: Text("No messages yet"),
+            child: Text("Še ni sporočil"),
           );
         }
 
-        // Build message list
+        // Zgradi seznam sporočil
         return ListView(
           controller: _scrollController,
           padding: const EdgeInsets.all(16),
           children: snapshot.data!.docs.map((doc) {
-            // Get message data
+            // Pridobi podatke sporočila
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-            // Decrypt message
+            // Dešifriraj sporočilo
             return FutureBuilder<String>(
               future: _chatService.decryptMessageFromDoc(data, chatRoomID),
               builder: (context, decryptSnapshot) {
-                // Show nothing while decrypting
+                // Ne prikaži ničesar med dešifriranjem
                 if (decryptSnapshot.connectionState ==
                     ConnectionState.waiting) {
                   return const SizedBox.shrink();
                 }
 
-                // Check if message is from current user
+                // Preveri, če je sporočilo od trenutnega uporabnika
                 bool isCurrentUser = data['senderId'] == senderId;
 
-                // Build message bubble
+                // Zgradi mehurček sporočila
                 return buildMessageItem(
-                  decryptSnapshot.data ?? "[Error decrypting]",
+                  decryptSnapshot.data ?? "[Napaka pri dešifriranju]",
                   isCurrentUser,
                   data['timestamp'] as Timestamp,
                 );
@@ -354,30 +351,30 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // Build a message bubble
+  // Zgradi mehurček sporočila
   Widget buildMessageItem(
       String message, bool isCurrentUser, Timestamp timestamp) {
-    // Format the time
+    // Oblikuj čas
     DateTime messageTime = timestamp.toDate();
     String formattedTime =
         "${messageTime.hour}:${messageTime.minute.toString().padLeft(2, '0')}";
 
-    // Message bubble
+    // Mehurček sporočila
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
-        // Align to right or left based on sender
+        // Poravnaj desno ali levo glede na pošiljatelja
         crossAxisAlignment:
             isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          // Message content
+          // Vsebina sporočila
           Container(
-            // Limit width to 75% of screen
+            // Omeji širino na 75% zaslona
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
             padding: const EdgeInsets.all(12),
-            // Different color based on sender
+            // Različna barva glede na pošiljatelja
             decoration: BoxDecoration(
               color: isCurrentUser ? const Color(0xFF1E88E5) : Colors.grey[100],
               borderRadius: BorderRadius.circular(16),
@@ -389,7 +386,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
           ),
-          // Time stamp
+          // Časovna oznaka
           Padding(
             padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
             child: Text(
@@ -405,13 +402,13 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // Build the message input area
+  // Zgradi območje za vnos sporočila
   Widget buildUserInput() {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          // Text input
+          // Besedilni vnos
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -423,9 +420,9 @@ class _ChatPageState extends State<ChatPage> {
                 child: TextField(
                   controller: _messageController,
                   focusNode: myFocusNode,
-                  // Only update hasText when text actually changes, not on every rebuild
+                  // Posodobi hasText samo, ko se besedilo dejansko spremeni, ne ob vsakem ponovnem izrisu
                   onChanged: (text) {
-                    // Only call setState if the value actually changed
+                    // Kliči setState samo, če se je vrednost dejansko spremenila
                     if ((_hasText && text.isEmpty) ||
                         (!_hasText && text.isNotEmpty)) {
                       setState(() {
@@ -434,7 +431,7 @@ class _ChatPageState extends State<ChatPage> {
                     }
                   },
                   decoration: const InputDecoration(
-                    hintText: "Type a message",
+                    hintText: "Napiši sporočilo",
                     border: InputBorder.none,
                   ),
                 ),
@@ -442,7 +439,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
           const SizedBox(width: 8),
-          // Send button - don't rebuild this on every character, it's wasteful
+          // Gumb za pošiljanje - ne preoblikuj tega ob vsakem znaku, to je potratno
           Container(
             decoration: BoxDecoration(
               color: _hasText ? const Color(0xFF1E88E5) : Colors.grey[300],

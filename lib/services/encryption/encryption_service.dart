@@ -7,40 +7,40 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logging/logging.dart';
 
 class EncryptionService {
-  // Firebase stuff
+  // Firebase elementi
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  // Create a logger
+  // Ustvari logger
   final Logger _logger = Logger('EncryptionService');
 
-  // Make a random key for encryption
+  // Ustvari naključni ključ za šifriranje
   String makeRandomKey() {
-    // Use Random.secure because my teacher said it's more secure
+    // Uporabi Random.secure, ker je moj učitelj rekel, da je bolj varen
     final random = Random.secure();
 
-    // Make 32 random numbers and convert to a string
+    // Ustvari 32 naključnih števil in jih pretvori v niz
     List<int> numbers = [];
     for (int i = 0; i < 32; i++) {
       numbers.add(random.nextInt(256));
     }
 
-    // Turn it into base64 because that's what the encrypt package needs
+    // Pretvori v base64, ker to potrebuje encrypt paket
     String key = base64Encode(numbers);
-    _logger.info("Created new encryption key!");
+    _logger.info("Ustvarjen nov šifrirni ključ!");
     return key;
   }
 
-  // Save the key to Firebase so we can use it later
+  // Shrani ključ v Firebase, da ga lahko uporabimo kasneje
   Future<void> saveKeyToFirebase(
       String chatRoomId, String receiverId, String key) async {
-    // Check if user is logged in
+    // Preveri, če je uporabnik prijavljen
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      _logger.warning("Error: Not logged in!");
+      _logger.warning("Napaka: Niste prijavljeni!");
       return;
     }
 
-    // Save the key
+    // Shrani ključ
     try {
       await _firestore
           .collection('chat_rooms')
@@ -51,37 +51,37 @@ class EncryptionService {
         'encryptedKey': key,
         'timestamp': FieldValue.serverTimestamp(),
       });
-      _logger.info("Key saved successfully!");
+      _logger.info("Ključ uspešno shranjen!");
     } catch (e) {
-      _logger.severe("Error saving key: $e");
+      _logger.severe("Napaka pri shranjevanju ključa: $e");
     }
   }
 
-  // Encrypt a message
+  // Šifriraj sporočilo
   Map<String, String> encryptMessage(String message, String key) {
     try {
-      // Convert the key to the format needed by the package
+      // Pretvori ključ v format, ki ga potrebuje paket
       final encryptKey = encrypt.Key.fromBase64(key);
 
-      // Create a random IV (my teacher explained this is important for security)
+      // Ustvari naključni IV (moj učitelj je razložil, da je to pomembno za varnost)
       final iv = encrypt.IV.fromSecureRandom(16);
 
-      // Set up the encrypter
+      // Nastavi šifrator
       final encrypter = encrypt.Encrypter(encrypt.AES(encryptKey));
 
-      // Do the encryption
+      // Izvedi šifriranje
       final encrypted = encrypter.encrypt(message, iv: iv);
 
-      _logger.info("Message encrypted successfully!");
+      _logger.info("Sporočilo uspešno šifrirano!");
 
-      // Return the encrypted message and IV
+      // Vrni šifrirano sporočilo in IV
       return {
         'encryptedText': encrypted.base64,
         'iv': iv.base64,
       };
     } catch (e) {
-      // If something goes wrong, just return the original message
-      _logger.warning("Encryption failed: $e");
+      // Če gre kaj narobe, vrni originalno sporočilo
+      _logger.warning("Šifriranje ni uspelo: $e");
       return {
         'encryptedText': message,
         'iv': '',
@@ -89,40 +89,40 @@ class EncryptionService {
     }
   }
 
-  // Decrypt a message
+  // Dešifriraj sporočilo
   String decryptMessage(String encryptedMessage, String ivString, String key) {
     try {
-      // If there's no IV, it's probably not encrypted
+      // Če ni IV, verjetno ni šifrirano
       if (ivString.isEmpty) {
         return encryptedMessage;
       }
 
-      // Set up the decryption
+      // Nastavi dešifriranje
       final encryptKey = encrypt.Key.fromBase64(key);
       final iv = encrypt.IV.fromBase64(ivString);
       final encrypter = encrypt.Encrypter(encrypt.AES(encryptKey));
 
-      // Decrypt the message
+      // Dešifriraj sporočilo
       String decrypted = encrypter.decrypt64(encryptedMessage, iv: iv);
-      _logger.info("Message decrypted successfully!");
+      _logger.info("Sporočilo uspešno dešifrirano!");
       return decrypted;
     } catch (e) {
-      // If decryption fails, show an error message
-      _logger.warning("Decryption failed: $e");
-      return "[Could not decrypt message]";
+      // Če dešifriranje ne uspe, prikaži sporočilo o napaki
+      _logger.warning("Dešifriranje ni uspelo: $e");
+      return "[Sporočila ni bilo mogoče dešifrirati]";
     }
   }
 
-  // Get or create a key for a chat room
+  // Pridobi ali ustvari ključ za klepetalnico
   Future<String> getOrCreateChatKey(String chatRoomId) async {
-    // Check if user is logged in
+    // Preveri, če je uporabnik prijavljen
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      _logger.severe("Error: Not logged in!");
-      throw Exception("Not logged in");
+      _logger.severe("Napaka: Niste prijavljeni!");
+      throw Exception("Niste prijavljeni");
     }
 
-    // Try to get existing key
+    // Poskusi pridobiti obstoječi ključ
     try {
       final keyDoc = await _firestore
           .collection('chat_rooms')
@@ -131,19 +131,19 @@ class EncryptionService {
           .doc('shared_key')
           .get();
 
-      // If key exists, return it
+      // Če ključ obstaja, ga vrni
       if (keyDoc.exists &&
           keyDoc.data() != null &&
           keyDoc.data()!['key'] != null) {
-        _logger.info("Found existing key!");
+        _logger.info("Najden obstoječi ključ!");
         return keyDoc.data()!['key'];
       }
 
-      // Otherwise create a new key
-      _logger.info("No key found, creating new one...");
+      // Sicer ustvari nov ključ
+      _logger.info("Ključ ni najden, ustvarjam novega...");
       final newKey = makeRandomKey();
 
-      // Save the new key
+      // Shrani novi ključ
       await _firestore
           .collection('chat_rooms')
           .doc(chatRoomId)
@@ -155,12 +155,12 @@ class EncryptionService {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      _logger.info("New key created and saved!");
+      _logger.info("Nov ključ ustvarjen in shranjen!");
       return newKey;
     } catch (e) {
-      // Show error and rethrow
-      _logger.severe("Error with chat key: $e");
-      throw Exception("Failed to get or create key: $e");
+      // Prikaži napako in ponovno vrži
+      _logger.severe("Napaka s ključem za klepet: $e");
+      throw Exception("Ni uspelo pridobiti ali ustvariti ključa: $e");
     }
   }
 }

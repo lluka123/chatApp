@@ -3,7 +3,6 @@ import "package:chatapp/pages/chat_page.dart";
 import "package:chatapp/services/auth/auth_service.dart";
 import "package:chatapp/services/chat/chat_service.dart";
 import "package:flutter/material.dart";
-import "package:flutter/services.dart";
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,39 +12,37 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Services
+  // Servisi
   final AuthService _authService = AuthService();
   final ChatService _chatService = ChatService();
-  
-  // Loading state
+
+  // Stanje nalaganja
   bool _isLoading = true;
-  
-  // For demonstration, we'll hardcode some users with unread messages
-  // In a real app, you would track this in your database
+
+  // Za demonstracijo bomo vnaprej določili nekaj uporabnikov z neprebranimi sporočili
+  // V pravi aplikaciji bi to sledili v vaši bazi podatkov
   final List<String> _usersWithUnreadMessages = ['user123', 'user456'];
-  
+
   @override
   void initState() {
     super.initState();
     _initializeApp();
-    
-    // For demonstration purposes, let's add a timer to simulate a new message
-    // after 5 seconds to test the notification
+
+    // Za demonstracijske namene dodajmo časovnik, ki simulira novo sporočilo
+    // po 5 sekundah za testiranje obvestila
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         setState(() {
-          // Add a random user ID to the unread messages list
+          // Dodaj naključni ID uporabnika na seznam neprebranih sporočil
           _usersWithUnreadMessages.add('randomUser789');
         });
-        // Vibrate the phone
-        HapticFeedback.vibrate();
       }
     });
   }
-  
+
   Future<void> _initializeApp() async {
     await _chatService.initializeEncryption();
-    
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -53,17 +50,17 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Logout function
+  // Funkcija za odjavo
   void _logout() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Logout"),
-        content: const Text("Are you sure you want to logout?"),
+        title: const Text("Odjava"),
+        content: const Text("Ali ste prepričani, da se želite odjaviti?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: const Text("Prekliči"),
           ),
           TextButton(
             onPressed: () {
@@ -71,7 +68,7 @@ class _HomePageState extends State<HomePage> {
               _authService.signOut();
             },
             child: const Text(
-              "Logout",
+              "Odjava",
               style: TextStyle(color: Colors.red),
             ),
           ),
@@ -114,7 +111,7 @@ class _HomePageState extends State<HomePage> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Center(
-            child: Text("Error loading users"),
+            child: Text("Napaka pri nalaganju uporabnikov"),
           );
         }
 
@@ -123,12 +120,12 @@ class _HomePageState extends State<HomePage> {
             child: CircularProgressIndicator(),
           );
         }
-        
+
         final users = snapshot.data!;
-        
+
         if (users.isEmpty) {
           return const Center(
-            child: Text("No users available"),
+            child: Text("Ni razpoložljivih uporabnikov"),
           );
         }
 
@@ -138,10 +135,11 @@ class _HomePageState extends State<HomePage> {
           itemBuilder: (context, index) {
             final userData = users[index];
             if (userData["email"] != _authService.getCurrentUser()!.email) {
-              // For demonstration, we'll mark some users as having unread messages
-              // In a real app, you would check your database
-              bool hasUnreadMessages = index % 3 == 0; // Every third user has unread messages
-              
+              // Za demonstracijo bomo označili nekatere uporabnike kot tiste z neprebranimi sporočili
+              // V pravi aplikaciji bi to preverili v vaši bazi podatkov
+              bool hasUnreadMessages = index % 3 ==
+                  0; // Vsak tretji uporabnik ima neprebrana sporočila
+
               return _buildUserTile(userData, hasUnreadMessages);
             } else {
               return Container();
@@ -151,12 +149,12 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-  
+
   Widget _buildUserTile(Map<String, dynamic> userData, bool hasUnreadMessages) {
-    // Get first letter of email for avatar
+    // Pridobi prvo črko e-pošte za avatar
     String firstLetter = userData["email"][0].toUpperCase();
-    
-    // Determine avatar color based on first letter
+
+    // Določi barvo avatarja glede na prvo črko
     Color avatarColor;
     if (firstLetter == 'J') {
       avatarColor = Colors.blue;
@@ -167,7 +165,7 @@ class _HomePageState extends State<HomePage> {
     } else {
       avatarColor = Colors.blue;
     }
-    
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       elevation: 0,
@@ -191,7 +189,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            // Show a notification dot if there are unread messages
+            // Prikaži piko za obvestilo, če obstajajo neprebrana sporočila
             if (hasUnreadMessages)
               Positioned(
                 right: -2,
@@ -224,7 +222,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(width: 4),
             Text(
-              "Tap to start secure chat",
+              "Tapni za začetek varnega klepeta",
               style: TextStyle(
                 color: Colors.grey[400],
                 fontSize: 12,
@@ -233,11 +231,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         onTap: () {
-          // Vibrate when tapping on a chat with unread messages
-          if (hasUnreadMessages) {
-            HapticFeedback.mediumImpact();
-          }
-          
           Navigator.push(
             context,
             MaterialPageRoute(
