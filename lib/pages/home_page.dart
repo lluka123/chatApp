@@ -3,6 +3,7 @@ import "package:chatapp/pages/chat_page.dart";
 import "package:chatapp/services/auth/auth_service.dart";
 import "package:chatapp/services/chat/chat_service.dart";
 import "package:flutter/material.dart";
+import 'package:logging/logging.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,33 +16,21 @@ class _HomePageState extends State<HomePage> {
   // Servisi
   final AuthService _authService = AuthService();
   final ChatService _chatService = ChatService();
+  // Logger za celoten razred
+  final Logger _logger = Logger('HomePage');
 
   // Stanje nalaganja
   bool _isLoading = true;
-
-  // Za demonstracijo bomo vnaprej določili nekaj uporabnikov z neprebranimi sporočili
-  // V pravi aplikaciji bi to sledili v vaši bazi podatkov
-  final List<String> _usersWithUnreadMessages = ['user123', 'user456'];
 
   @override
   void initState() {
     super.initState();
     _initializeApp();
-
-    // Za demonstracijske namene dodajmo časovnik, ki simulira novo sporočilo
-    // po 5 sekundah za testiranje obvestila
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        setState(() {
-          // Dodaj naključni ID uporabnika na seznam neprebranih sporočil
-          _usersWithUnreadMessages.add('randomUser789');
-        });
-      }
-    });
   }
 
   Future<void> _initializeApp() async {
-    await _chatService.initializeEncryption();
+    // Počakaj trenutek, da se UI lahko izriše pred nalaganjem podatkov
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (mounted) {
       setState(() {
@@ -106,26 +95,44 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildUserList() {
-    return StreamBuilder(
-      stream: _chatService.getUsersStreamExceptBlocked(),
+    // Pridobi trenutnega uporabnika za filtriranje
+    final currentUserEmail = _authService.getCurrentUser()?.email;
+    // Uporabi razredni logger namesto lokalnega
+    // Ni več potrebe po lokalni spremenljivki logger
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _chatService.getUsersStream(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          _logger.severe("Napaka pri nalaganju uporabnikov: ${snapshot.error}");
           return const Center(
             child: Text("Napaka pri nalaganju uporabnikov"),
           );
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
+          // Če še vedno nalagamo, prikaži indikator
           return const Center(
             child: CircularProgressIndicator(),
           );
         }
 
-        final users = snapshot.data!;
+        if (!snapshot.hasData || snapshot.data == null) {
+          _logger.warning("Ni podatkov o uporabnikih");
+          return const Center(
+            child: Text("Ni podatkov o uporabnikih"),
+          );
+        }
+
+        // Filtriraj seznam uporabnikov, da izključiš trenutnega uporabnika
+        final users = snapshot.data!
+            .where((userData) => userData["email"] != currentUserEmail)
+            .toList();
 
         if (users.isEmpty) {
+          _logger.info("Seznam uporabnikov je prazen");
           return const Center(
-            child: Text("Ni razpoložljivih uporabnikov"),
+            child: Text("Ni razpoložljivih uporabnikov za klepet"),
           );
         }
 
@@ -134,36 +141,63 @@ class _HomePageState extends State<HomePage> {
           itemCount: users.length,
           itemBuilder: (context, index) {
             final userData = users[index];
-            if (userData["email"] != _authService.getCurrentUser()!.email) {
-              // Za demonstracijo bomo označili nekatere uporabnike kot tiste z neprebranimi sporočili
-              // V pravi aplikaciji bi to preverili v vaši bazi podatkov
-              bool hasUnreadMessages = index % 3 ==
-                  0; // Vsak tretji uporabnik ima neprebrana sporočila
-
-              return _buildUserTile(userData, hasUnreadMessages);
-            } else {
-              return Container();
-            }
+            return _buildUserTile(userData);
           },
         );
       },
     );
   }
 
-  Widget _buildUserTile(Map<String, dynamic> userData, bool hasUnreadMessages) {
-    // Pridobi prvo črko e-pošte za avatar
-    String firstLetter = userData["email"][0].toUpperCase();
+  Widget _buildUserTile(Map<String, dynamic> userData) {
+    String email = userData["email"] ?? "Neznan email";
+    if (email.isEmpty) {
+      email = "Neznan email";
+    }
+    String firstLetter = email.isNotEmpty ? email[0].toUpperCase() : "?";
 
-    // Določi barvo avatarja glede na prvo črko
     Color avatarColor;
-    if (firstLetter == 'J') {
-      avatarColor = Colors.blue;
-    } else if (firstLetter == 'M') {
-      avatarColor = Colors.purple;
-    } else if (firstLetter == 'L') {
-      avatarColor = Colors.green;
-    } else {
-      avatarColor = Colors.blue;
+    // Preprosta logika za barvo avatarja
+    switch (firstLetter) {
+      case 'A':
+      case 'G':
+      case 'M':
+      case 'S':
+      case 'Y':
+        avatarColor = Colors.blue.shade300;
+        break;
+      case 'B':
+      case 'H':
+      case 'N':
+      case 'T':
+      case 'Z':
+        avatarColor = Colors.green.shade300;
+        break;
+      case 'C':
+      case 'I':
+      case 'O':
+      case 'U':
+        avatarColor = Colors.purple.shade300;
+        break;
+      case 'D':
+      case 'J':
+      case 'P':
+      case 'V':
+        avatarColor = Colors.orange.shade300;
+        break;
+      case 'E':
+      case 'K':
+      case 'Q':
+      case 'W':
+        avatarColor = Colors.red.shade300;
+        break;
+      case 'F':
+      case 'L':
+      case 'R':
+      case 'X':
+        avatarColor = Colors.teal.shade300;
+        break;
+      default:
+        avatarColor = Colors.grey.shade400;
     }
 
     return Card(
@@ -175,39 +209,19 @@ class _HomePageState extends State<HomePage> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            CircleAvatar(
-              backgroundColor: avatarColor,
-              radius: 20,
-              child: Text(
-                firstLetter,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+        leading: CircleAvatar(
+          backgroundColor: avatarColor,
+          radius: 20,
+          child: Text(
+            firstLetter,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
-            // Prikaži piko za obvestilo, če obstajajo neprebrana sporočila
-            if (hasUnreadMessages)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
         title: Text(
-          userData["email"],
+          email,
           style: const TextStyle(
             fontWeight: FontWeight.w500,
             fontSize: 16,
@@ -231,15 +245,24 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatPage(
-                receiverEmail: userData["email"],
-                receiverId: userData["uid"],
+          if (userData["uid"] != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChatPage(
+                  receiverEmail: email,
+                  receiverId: userData["uid"],
+                ),
               ),
-            ),
-          );
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Napaka: ID uporabnika ni na voljo."),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         },
       ),
     );

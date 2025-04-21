@@ -27,42 +27,9 @@ class ChatService extends ChangeNotifier {
     return _firestore.collection("users").snapshots().map((snapshot) {
       // Pretvori vsak dokument v Map
       return snapshot.docs.map((doc) {
-        return doc.data();
+        final user = doc.data();
+        return user;
       }).toList();
-    });
-  }
-
-  // Pridobi vse uporabnike razen tistih, ki sem jih blokiral
-  Stream<List<Map<String, dynamic>>> getUsersStreamExceptBlocked() {
-    // Pridobi trenutnega uporabnika
-    final currentUser = _auth.currentUser;
-
-    // Najprej pridobi blokirane uporabnike, nato filtriraj glavni seznam uporabnikov
-    return _firestore
-        .collection("users")
-        .doc(currentUser!.uid)
-        .collection("blockedUsers")
-        .snapshots()
-        .asyncMap((snapshot) async {
-      // Pridobi ID-je blokiranih uporabnikov
-      List<String> blockedIds = [];
-      for (var doc in snapshot.docs) {
-        blockedIds.add(doc.id);
-      }
-
-      // Pridobi vse uporabnike
-      final usersSnapshot = await _firestore.collection("users").get();
-
-      // Filtriraj blokirane uporabnike in sebe
-      List<Map<String, dynamic>> filteredUsers = [];
-      for (var doc in usersSnapshot.docs) {
-        if (doc.data()['email'] != currentUser.email &&
-            !blockedIds.contains(doc.id)) {
-          filteredUsers.add(doc.data());
-        }
-      }
-
-      return filteredUsers;
     });
   }
 
@@ -162,10 +129,14 @@ class ChatService extends ChangeNotifier {
   // Funkcija za prijavo uporabnika
   Future<void> reportUser(String messageId, String userId) async {
     final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      _logger.warning("Napaka: Uporabnik ni prijavljen za prijavo drugega.");
+      return;
+    }
 
     // Ustvari prijavo
     Map<String, dynamic> report = {
-      'reportedBy': currentUser!.uid,
+      'reportedBy': currentUser.uid,
       'messageId': messageId,
       'messageOwnerId': userId,
       'timestamp': FieldValue.serverTimestamp(),
@@ -178,70 +149,5 @@ class ChatService extends ChangeNotifier {
     } catch (e) {
       _logger.warning("Napaka pri prijavi uporabnika: $e");
     }
-  }
-
-  // Blokiraj uporabnika
-  Future<void> blockUser(String userId) async {
-    final currentUser = _auth.currentUser;
-
-    try {
-      // Dodaj uporabnika v zbirko blokiranih
-      await _firestore
-          .collection("users")
-          .doc(currentUser!.uid)
-          .collection("blockedUsers")
-          .doc(userId)
-          .set({});
-
-      _logger.info("Uporabnik uspešno blokiran");
-      notifyListeners();
-    } catch (e) {
-      _logger.warning("Napaka pri blokiranju uporabnika: $e");
-    }
-  }
-
-  // Odblokiraj uporabnika
-  Future<void> unblockUser(String blockedUserId) async {
-    final currentUser = _auth.currentUser;
-
-    try {
-      // Odstrani uporabnika iz zbirke blokiranih
-      await _firestore
-          .collection("users")
-          .doc(currentUser!.uid)
-          .collection("blockedUsers")
-          .doc(blockedUserId)
-          .delete();
-
-      _logger.info("Uporabnik uspešno odblokiran");
-    } catch (e) {
-      _logger.warning("Napaka pri odblokiranju uporabnika: $e");
-    }
-  }
-
-  // Pridobi seznam blokiranih uporabnikov
-  Stream<List<Map<String, dynamic>>> getBlockedUsersStream(String userId) {
-    return _firestore
-        .collection("users")
-        .doc(userId)
-        .collection("blockedUsers")
-        .snapshots()
-        .asyncMap((snapshot) async {
-      // Pridobi ID-je blokiranih uporabnikov
-      List<String> blockedIds = [];
-      for (var doc in snapshot.docs) {
-        blockedIds.add(doc.id);
-      }
-
-      // Pridobi podrobnosti uporabnika za vsak blokiran ID
-      List<Map<String, dynamic>> blockedUsers = [];
-      for (var id in blockedIds) {
-        DocumentSnapshot userDoc =
-            await _firestore.collection("users").doc(id).get();
-        blockedUsers.add(userDoc.data() as Map<String, dynamic>);
-      }
-
-      return blockedUsers;
-    });
   }
 }
