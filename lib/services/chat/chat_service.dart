@@ -125,29 +125,4 @@ class ChatService extends ChangeNotifier {
       return "[Šifrirano sporočilo]";
     }
   }
-
-  // Funkcija za prijavo uporabnika
-  Future<void> reportUser(String messageId, String userId) async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      _logger.warning("Napaka: Uporabnik ni prijavljen za prijavo drugega.");
-      return;
-    }
-
-    // Ustvari prijavo
-    Map<String, dynamic> report = {
-      'reportedBy': currentUser.uid,
-      'messageId': messageId,
-      'messageOwnerId': userId,
-      'timestamp': FieldValue.serverTimestamp(),
-    };
-
-    // Shrani prijavo v Firebase
-    try {
-      await _firestore.collection('reports').add(report);
-      _logger.info("Uporabnik uspešno prijavljen");
-    } catch (e) {
-      _logger.warning("Napaka pri prijavi uporabnika: $e");
-    }
-  }
 }
